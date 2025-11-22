@@ -105,69 +105,52 @@
             );
         };
 
-        // --- PROMPTS DI SISTEMA ---
+// --- PROMPTS DI SISTEMA AGGIORNATI (v1.03 - Stile Istituzionale GEM) ---
+        
         const SYSTEM_PROMPT_RENAME = `
-        Sei un assistente amministrativo esperto per l'Ufficio Tecnico del Comune di Monteceneri (Ticino, Svizzera).
-        Il tuo compito è analizzare documenti (PDF, Immagini, Testo da Office) ed estrarre metadati per rinominare il file.
-
-        Regole di Estrazione:
-        1. DATA: Cerca la data del documento nel formato AAAA MM GG.
-        - Priorità: Data della lettera > Data firma > Data timbro.
-        - Se la data non è presente o incerta, usa "0000 00 00".
-        2. ENTE/PERSONA:
-        - Se è un ufficio cantonale ticinese, usa il nome specifico (es. "Ufficio dei corsi d'acqua"). NON usare "Repubblica e Cantone Ticino".
-        - FORMATO: Usa sempre "Nome Cognome" (Title Case). NON usare il TUTTO MAIUSCOLO (es: "Mario Rossi", non "MARIO ROSSI"), a meno che non sia un acronimo (es. CDALED, AIL).
-        - Se assente o illeggibile, lascia stringa vuota "".
-        3. OGGETTO:
-        - Sintesi breve (max 120 caratteri).
-        - Rimuovi "Oggetto:", "Concerna:", "Rif:".
-        - Evita ripetizioni dell'ente.
-
-        Formato Output richiesto (JSON):
-        {
-        "date_year": "AAAA",
-        "date_month": "MM",
-        "date_day": "GG",
-        "entity": "Nome Ente",
-        "subject": "Oggetto sintetico"
-        }
+        Sei un assistente per l'Ufficio Tecnico di Monteceneri. Estrai metadati per rinominare il file.
+        Regole:
+        1. DATA: AAAA MM GG (Priorità: Lettera > Firma > Timbro). Se incerta: "0000 00 00".
+        2. ENTE: Nome specifico (es. "Ufficio dei corsi d'acqua"). Usa Title Case.
+        3. OGGETTO: Sintesi breve (max 120 car).
+        Output JSON: { "date_year": "AAAA", "date_month": "MM", "date_day": "GG", "entity": "Ente", "subject": "Oggetto" }
         `;
 
         const SYSTEM_PROMPT_INTERNAL_SUMMARY = `
-        Sei un assistente dell'Ufficio Tecnico di Monteceneri.
-        Prepara la bozza di un'email interna rivolta a un collaboratore o al Municipio.
-        Obiettivo: Riassumere il contenuto per una rapida presa visione.
-
-        IMPORTANTE: Non usare formattazione Markdown. Usa solo testo semplice.
-
-        Struttura richiesta:
-        1. Un unico paragrafo denso che riassume il contenuto.
-        2. Evidenzia chiaramente:
-        - Eventuali richieste formulate.
-        - Scadenze temporali esplicite o implicite.
-        - Importi finanziari se presenti (formato fr. 100.-).
-
-        Non mettere saluti iniziali.
+        Agisci come funzionario esperto del Comune di Monteceneri.
+        Il tuo compito è sintetizzare il documento applicando i principi di: Sostanza > Forma (no ripetizioni) e Chiarezza.
+        
+        PROTOCOLLO:
+        - Non usare frasi di contorno ("Ecco il riassunto").
+        - Standard Locali: Usa "fr. 100.-" per la valuta, "Municipio/Cantone" sempre maiuscoli.
+        - Mappali: usa il formato "mappale [X] RFD Monteceneri sez. [Sezione]".
+        
+        OUTPUT RICHIESTO (Strutturato):
+        1. **Sintesi**: Un unico paragrafo denso e fluido. Unisci i concetti usando connettivi logici (pertanto, tuttavia).
+        2. **Punti Chiave**:
+           - **Municipio**: Decisioni/Azioni (se presenti).
+           - **Ufficio Tecnico**: Verifiche/Sopralluoghi (se presenti).
+        3. **Scadenze/Importi**: Date esplicite e cifre (formato fr.).
         `;
 
         const SYSTEM_PROMPT_DIPLOMATIC = `
-        Agisci come Segretario Comunale o funzionario esperto del Comune di Monteceneri (Ticino).
-        Il tuo compito è rielaborare i contenuti del documento per creare una bozza di risposta (lettera o e-mail).
+        Agisci come Segretario Comunale del Comune di Monteceneri (Ticino).
+        Il tuo compito è redigere una risposta o un testo di accompagnamento con stile istituzionale, cortese e diretto.
 
-        ⚠️ PROTOCOLLO DI OUTPUT (RIGIDO):
-        SILENZIO ASSOLUTO: Non scrivere MAI frasi come "Ecco il testo".
-        NO MARKDOWN: Usa solo testo puro.
-
-        STRUTTURA:
-        - Prima riga: Il testo rielaborato (pronto per il copia-incolla).
-        - (Riga vuota)
-        - Ultima sezione (Opzionale): Una lista puntata sintetica [Note di Intervento].
-
-        STANDARD LOCALI:
+        ⚠️ STANDARD LOCALI (INTOCCABILI):
         - Enti: Comune, Cantone, Municipio (Maiuscolo).
-        - Valute: fr. 100.- o fr. 100.50.
-        - Mappali: mappale [X] RFD Monteceneri sez. [Sezione].
-        - Legale: Mantieni "crescita in giudicato".
+        - Valuta: "fr. 100.-" o "fr. 100.50".
+        - Mappali: "mappale [X] RFD Monteceneri sez. [Sezione]" (Sezioni: Bironico, Medeglia, Camignolo, Rivera, Sigirino).
+        - Legale: Usa "crescita in giudicato" se pertinente.
+
+        CASISTICA:
+        A) Reclami/Richieste formali: Scrivi una BOZZA DI RISPOSTA. Tono rassicurante ma fermo. Conferma ricezione, indica l'iter (es. "sottoporremo al Municipio").
+        B) Documenti descrittivi (Rapporti/Piani): Scrivi una MAIL DI ACCOMPAGNAMENTO sintetica per l'invio ("Si trasmette per opportuna conoscenza...").
+
+        PROTOCOLLO OUTPUT:
+        1. Prima riga: Il testo pronto per il copia-incolla (senza saluti generici all'AI).
+        2. (Riga vuota)
+        3. [Note di Intervento]: Lista puntata sintetica su cosa hai modificato/notato (max 3 punti).
         `;
 
         // --- CONFIGURAZIONE DOCUWARE ---
@@ -401,7 +384,8 @@
                 return { type: 'error', content: '' }; 
             };
 
-            const callGemini = async (fileData, prompt, jsonMode = false) => {
+            // FIX: callGemini ora accetta systemPrompt specifico per evitare inquinamento del testo
+            const callGemini = async (fileData, prompt, systemPrompt, jsonMode = false) => {
                 if (!config.apiKey) throw new Error("API Key non configurata nelle impostazioni!");
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${config.apiKey}`;
                 
@@ -409,11 +393,11 @@
                 if (fileData.type === 'binary') {
                     userPart = { inline_data: { mime_type: fileData.mime, data: fileData.content } };
                 } else {
-                    // Se è testo (Word/Excel), lo inviamo come text part
                     userPart = { text: `DOCUMENTO ESTRATTO:\n${fileData.content}` };
                 }
                 
-                const finalPrompt = SYSTEM_PROMPT_RENAME + "\n\n" + prompt;
+                // Combina il System Prompt specifico con la richiesta utente
+                const finalPrompt = systemPrompt + "\n\n" + prompt;
 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -441,7 +425,7 @@
                     setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'processing' } : x));
                     try {
                         const prep = await prepareFileForGemini(f.file);
-                        const res = await callGemini(prep, "Analizza questo documento.", true);
+                        const res = await callGemini(prep, "Estrai i metadati.", SYSTEM_PROMPT_RENAME, true);
                         const json = JSON.parse(res.replace(/```json|```/g, '').trim());
                         
                         let docDate = null;
@@ -458,7 +442,7 @@
                 setIsProcessing(false);
             };
 
-            // --- FIX AI TOOLS: FUNZIONE DEDICATA PER GLI STRUMENTI ---
+            // --- AI TOOLS: FUNZIONE DEDICATA PER GLI STRUMENTI ---
             const handleToolAnalysis = async (type) => {
                 if (!activeAnalysisFile) return;
                 if (!config.apiKey) { alert("API Key mancante!"); setShowConfig(true); return; }
@@ -467,17 +451,51 @@
                 setIsAnalyzing(true);
                 setAnalysisResult(null);
 
-                let prompt = type === 'diplomatic_response' ? SYSTEM_PROMPT_DIPLOMATIC : SYSTEM_PROMPT_INTERNAL_SUMMARY;
+                // Seleziona il prompt corretto in base al tasto premuto
+                let promptSystem = type === 'diplomatic_response' ? SYSTEM_PROMPT_DIPLOMATIC : SYSTEM_PROMPT_INTERNAL_SUMMARY;
 
                 try {
                     const preparedData = await prepareFileForGemini(activeAnalysisFile.file);
-                    // Chiamata esplicita NON in JSON mode per il testo libero
-                    const resultText = await callGemini(preparedData, prompt, false); 
+                    // MODIFICA QUI: Passiamo il prompt specifico e jsonMode=false
+                    const resultText = await callGemini(preparedData, "Genera il testo richiesto.", promptSystem, false); 
                     setAnalysisResult(resultText);
                 } catch (e) {
                     setAnalysisResult("Errore durante l'analisi: " + e.message);
                 } finally {
                     setIsAnalyzing(false);
+                }
+            };
+
+// --- FUNZIONE DOWNLOAD ZIP ---
+            const downloadAllZip = async () => {
+                if (!window.JSZip) { alert("Libreria ZIP non ancora caricata. Riprova tra poco."); return; }
+                
+                const validFiles = files.filter(f => f.status === 'success' || f.manualOverride);
+                if (validFiles.length === 0) { alert("Nessun file elaborato da scaricare."); return; }
+
+                const zip = new window.JSZip();
+                const folder = zip.folder("Rinominati_Monteceneri");
+
+                validFiles.forEach(f => {
+                    const ext = f.originalName.split('.').pop();
+                    const name = f.manualOverride || formFinalFilename(f.data);
+                    // Aggiunge il file allo zip con il nuovo nome
+                    folder.file(`${name}.${ext}`, f.file);
+                });
+
+                try {
+                    const content = await zip.generateAsync({ type: "blob" });
+                    // Crea un link temporaneo per il download
+                    const url = window.URL.createObjectURL(content);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `Posta_Monteceneri_${new Date().toISOString().slice(0,10)}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } catch (e) {
+                    alert("Errore creazione ZIP: " + e.message);
                 }
             };
 
@@ -711,15 +729,25 @@
                                 )}
 
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-4">
+                                    {/* HEADER TABELLA AGGIORNATO */}
                                     <div className="grid grid-cols-12 bg-slate-50 p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 tracking-wider">
-                                        <div className="col-span-4 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('originalName')}>Originale <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
+                                        <div className="col-span-3 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('originalName')}>Originale <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
+                                        {/* NUOVA COLONNA DATA */}
+                                        <div className="col-span-2 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('docDate')}>Data Doc. <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
                                         <div className="col-span-2">Stato</div>
-                                        <div className="col-span-6 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('generatedName')}>Proposta <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
+                                        <div className="col-span-5 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('generatedName')}>Proposta <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
                                     </div>
+                                    
                                     <div className="divide-y divide-slate-100">
                                         {files.map(f => (
                                             <div key={f.id} className="grid grid-cols-12 p-4 items-center hover:bg-slate-50 transition-colors">
-                                                <div className="col-span-4 text-sm font-medium text-slate-600 truncate pr-6" title={f.originalName}>{f.originalName}</div>
+                                                <div className="col-span-3 text-sm font-medium text-slate-600 truncate pr-4" title={f.originalName}>{f.originalName}</div>
+                                                
+                                                {/* CELLA DATA */}
+                                                <div className="col-span-2 text-sm text-slate-500">
+                                                    {f.dateObject ? f.dateObject.toLocaleDateString('it-CH') : '-'}
+                                                </div>
+
                                                 <div className="col-span-2">
                                                     {f.status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">In attesa</span>}
                                                     {f.status === 'processing' && (
@@ -731,7 +759,7 @@
                                                     {f.status === 'success' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="Check" className="w-3 h-3 mr-1"/> Pronto</span>}
                                                     {f.status === 'error' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100" title={f.errorMessage}><Icon name="AlertCircle" className="w-3 h-3 mr-1"/> Errore</span>}
                                                 </div>
-                                                <div className="col-span-6 text-sm font-medium flex justify-between items-center group">
+                                                <div className="col-span-5 text-sm font-medium flex justify-between items-center group">
                                                     <div className={`truncate w-full ${f.status === 'success' ? 'text-slate-800' : 'text-slate-400 italic'}`}>
                                                         {f.status === 'success' ? (f.manualOverride || formFinalFilename(f.data)) : (f.status === 'error' ? 'Impossibile rinominare' : '...')}
                                                     </div>
@@ -914,9 +942,20 @@
                                 {analysisResult && (
                                     <div className="animate-in fade-in slide-in-from-bottom-4 h-full flex flex-col">
                                         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm font-mono text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner flex-1 overflow-y-auto">{analysisResult}</div>
-                                        <div className="mt-6 flex justify-between items-center">
-                                            <span className="text-xs text-slate-400">Generato da Gemini AI</span>
-                                            <button onClick={() => navigator.clipboard.writeText(analysisResult)} className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><Icon name="Copy" className="w-4 h-4"/> Copia testo</button>
+                                        <div className="mt-6 flex justify-between items-center gap-3">
+                                            <span className="text-xs text-slate-400 mr-auto">Generato da Gemini AI</span>
+                                            
+                                            {/* PULSANTE OUTLOOK */}
+                                            <button 
+                                                onClick={() => window.location.href = `mailto:?body=${encodeURIComponent(analysisResult)}`}
+                                                className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
+                                            >
+                                                <Icon name="Mail" className="w-4 h-4"/> Invia con Outlook
+                                            </button>
+
+                                            <button onClick={() => navigator.clipboard.writeText(analysisResult)} className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
+                                                <Icon name="Copy" className="w-4 h-4"/> Copia testo
+                                            </button>
                                         </div>
                                     </div>
                                 )}
@@ -937,6 +976,7 @@
     </script>
 </body>
 </html>
+
 
 
 
