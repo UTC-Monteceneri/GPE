@@ -105,7 +105,7 @@
             );
         };
 
-// --- PROMPTS DI SISTEMA AGGIORNATI (v1.03 - Stile Istituzionale GEM) ---
+// --- PROMPTS DI SISTEMA AGGIORNATI (v1.04 - Stile Istituzionale GEM) ---
         
         const SYSTEM_PROMPT_RENAME = `
         Sei un assistente per l'Ufficio Tecnico di Monteceneri. Estrai metadati per rinominare il file.
@@ -120,24 +120,37 @@
         Agisci come funzionario esperto del Comune di Monteceneri.
         Il tuo compito è sintetizzare il documento applicando i principi di: Sostanza > Forma (no ripetizioni) e Chiarezza.
         
-        PROTOCOLLO:
-        - Non usare frasi di contorno ("Ecco il riassunto").
-        - Standard Locali: Usa "fr. 100.-" per la valuta, "Municipio/Cantone" sempre maiuscoli.
-        - Mappali: usa il formato "mappale [X] RFD Monteceneri sez. [Sezione]".
+        PROTOCOLLO FORMATTAZIONE:
+        - USA SOLO TESTO SEMPLICE.
+        - VIETATO MARKDOWN: Non usare asterischi (**), cancelletti (##) o elenchi puntati formattati.
+        - Usa MAIUSCOLO per i titoli delle sezioni.
         
-        OUTPUT RICHIESTO (Strutturato):
-        1. **Sintesi**: Un unico paragrafo denso e fluido. Unisci i concetti usando connettivi logici (pertanto, tuttavia).
-        2. **Punti Chiave**:
-           - **Municipio**: Decisioni/Azioni (se presenti).
-           - **Ufficio Tecnico**: Verifiche/Sopralluoghi (se presenti).
-        3. **Scadenze/Importi**: Date esplicite e cifre (formato fr.).
+        STANDARD LOCALI:
+        - Valuta: "fr. 100.-"
+        - Enti: "Municipio", "Cantone" (Maiuscolo).
+        - Mappali: "mappale [X] RFD Monteceneri sez. [Sezione]".
+        
+        OUTPUT RICHIESTO:
+        SINTESI
+        [Un unico paragrafo denso e fluido. Unisci i concetti usando connettivi logici.]
+        
+        PUNTI CHIAVE
+        - Municipio: [Decisioni/Azioni se presenti]
+        - Ufficio Tecnico: [Verifiche/Sopralluoghi se presenti]
+        
+        SCADENZE E IMPORTI
+        [Date esplicite e cifre in formato fr.]
         `;
 
         const SYSTEM_PROMPT_DIPLOMATIC = `
         Agisci come Segretario Comunale del Comune di Monteceneri (Ticino).
         Il tuo compito è redigere una risposta o un testo di accompagnamento con stile istituzionale, cortese e diretto.
 
-        ⚠️ STANDARD LOCALI (INTOCCABILI):
+        PROTOCOLLO FORMATTAZIONE:
+        - USA SOLO TESTO SEMPLICE. Niente Markdown.
+        - NESSUNA NOTA FINALE. Restituisci SOLO il testo della mail/lettera pronto all'uso.
+        
+        STANDARD LOCALI:
         - Enti: Comune, Cantone, Municipio (Maiuscolo).
         - Valuta: "fr. 100.-" o "fr. 100.50".
         - Mappali: "mappale [X] RFD Monteceneri sez. [Sezione]" (Sezioni: Bironico, Medeglia, Camignolo, Rivera, Sigirino).
@@ -147,10 +160,8 @@
         A) Reclami/Richieste formali: Scrivi una BOZZA DI RISPOSTA. Tono rassicurante ma fermo. Conferma ricezione, indica l'iter (es. "sottoporremo al Municipio").
         B) Documenti descrittivi (Rapporti/Piani): Scrivi una MAIL DI ACCOMPAGNAMENTO sintetica per l'invio ("Si trasmette per opportuna conoscenza...").
 
-        PROTOCOLLO OUTPUT:
-        1. Prima riga: Il testo pronto per il copia-incolla (senza saluti generici all'AI).
-        2. (Riga vuota)
-        3. [Note di Intervento]: Lista puntata sintetica su cosa hai modificato/notato (max 3 punti).
+        OUTPUT:
+        Scrivi direttamente il testo della comunicazione, senza premesse o commenti.
         `;
 
         // --- CONFIGURAZIONE DOCUWARE ---
@@ -976,6 +987,7 @@
     </script>
 </body>
 </html>
+
 
 
 
