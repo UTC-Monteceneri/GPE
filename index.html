@@ -117,27 +117,18 @@
 
         // --- CONFIGURAZIONE DOCUWARE ---
         const DOCUWARE_CONFIG = {
-            // ... (loginUrl, baseUrl, basketId rimangono uguali) ...
+            // Link invariati
             loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/", 
             baseUrl: "https://tommaso.tectel.ch/docuware/Platform",
             basketId: "b_aaeb8717-6b54-421e-a15e-458e3f783357",
-
-            // MAPPATURA CAMPI (JSON AI -> CAMPI TOMMASO)
+            
+            // MAPPATURA CAMPI (Chiave Interna -> Nome Campo su Tommaso)
             fields: {
-                // Data (L'AI restituisce date_year/month/day -> index.html costruisce l'oggetto data)
-                date: "DATA_DOCUMENTO", 
-                
-                // Oggetto (L'AI restituisce "subject")
-                subject: "NOME_DOCUMENTO", 
-                
-                // Ente (L'AI restituisce "entity" - Opzionale se vuoi usarlo)
-                entity: "ENTE_MITTENTE", 
-                
-                // Tipo Documento (L'AI restituisce "doc_type")
-                docType: "TIPO_DOCUMENTO", 
-                
-                // Fase Progetto (L'AI restituisce "project_phase")
-                projectPhase: "FASE_DEL_PROGETTO" 
+                date: "DATA_DOCUMENTO",        // Per la data
+                subject: "NOME_DOCUMENTO",     // Per l'oggetto
+                entity: "ENTE_MITTENTE",       // Per l'ente (opzionale)
+                docType: "TIPO_DOCUMENTO",     // Per il tipo documento
+                projectPhase: "FASE_DEL_PROGETTO" // Per la fase progetto
             }
         };
 
@@ -478,7 +469,7 @@
                 }
             };
 
-// --- DOCUWARE UPLOAD (CORRETTO) ---
+            // --- DOCUWARE UPLOAD ---
             const handleDocuWareUpload = async () => {
                 if (!config.dwUser || !config.dwPass) { alert("Configura Username e Password nelle impostazioni!"); setShowConfig(true); return; }
                 const todo = files.filter(f => f.status === 'success' || f.manualOverride);
@@ -489,48 +480,100 @@
                 
                 log("Login su Tommaso...");
                 try {
-                    const form = new URLSearchParams();
-                    form.append('UserName', config.dwUser);
-                    form.append('Password', config.dwPass);
-                    form.append('RememberMe', 'false');
+                    // 1. LOGIN
+                    const loginForm = new URLSearchParams();
+                    loginForm.append('UserName', config.dwUser);
+                    loginForm.append('Password', config.dwPass);
+                    loginForm.append('RememberMe', 'false');
 
-                    // CORREZIONE 1: Uso DOCUWARE_CONFIG.baseUrl invece di config.dwUrl
                     const loginRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/Account/Logon`, {
-                        method: 'POST', body: form, credentials: 'include',
-                        headers: { 
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Accept': 'application/json' 
-                        }
+                        method: 'POST', body: loginForm, credentials: 'include',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' }
                     });
 
                     if (!loginRes.ok) throw new Error(`Login Error: ${loginRes.status}`);
-                    log("✅ Login OK. Caricamento...");
+                    log("✅ Login OK. Inizio caricamento...");
                     setDwStatus('uploading');
 
-                    let success = 0;
                     for (const f of todo) {
                         const ext = f.originalName.split('.').pop();
-                        const name = f.manualOverride || formFinalFilename(f.data);
-                        const filename = `${name}.${ext}`;
+                        const finalName = f.manualOverride || formFinalFilename(f.data);
+                        const filename = `${finalName}.${ext}`;
                         log(`>> ${filename}`);
                         
                         try {
+                            // 2. UPLOAD DEL FILE NEL CESTINO
                             const fd = new FormData();
                             fd.append('file', f.file, filename);
-                            // CORREZIONE 2: Uso DOCUWARE_CONFIG.baseUrl e DOCUWARE_CONFIG.basketId
+                            
                             const upRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents`, {
-                                method: 'POST', body: fd, credentials: 'include',
-                                headers: { 'Accept': 'application/json' }
+                                method: 'POST', body: fd, credentials: 'include', headers: { 'Accept': 'application/json' }
                             });
-                            if (upRes.ok) { log("✅ OK"); success++; }
-                            else { log(`❌ Errore ${upRes.status}`); }
-                        } catch (e) { log(`❌ Errore Rete`); }
-                        await new Promise(r => setTimeout(r, 100));
+
+                            if (!upRes.ok) throw new Error(`Upload fallito (${upRes.status})`);
+                            
+                            const upJson = await upRes.json();
+                            const docId = upJson.Id; // ID del documento appena creato
+                            
+                            // 3. PREPARAZIONE DATI (INDEXING)
+                            const fieldsToUpdate = [];
+                            
+                            // A. DATA (DATA_DOCUMENTO)
+                            if (f.dateObject && DOCUWARE_CONFIG.fields.date) {
+                                const year = f.dateObject.getFullYear();
+                                const month = String(f.dateObject.getMonth() + 1).padStart(2, '0');
+                                const day = String(f.dateObject.getDate()).padStart(2, '0');
+                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.date, "Item": `${year}-${month}-${day}`, "ItemElementName": "Date" });
+                            }
+
+                            // B. OGGETTO (NOME_DOCUMENTO)
+                            if (f.data?.subject && DOCUWARE_CONFIG.fields.subject) {
+                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.subject, "Item": f.data.subject, "ItemElementName": "String" });
+                            }
+
+                            // C. ENTE (ENTE_MITTENTE) - Se presente
+                            if (f.data?.entity && DOCUWARE_CONFIG.fields.entity) {
+                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.entity, "Item": f.data.entity, "ItemElementName": "String" });
+                            }
+
+                            // D. TIPO DOCUMENTO (TIPO_DOCUMENTO) - NUOVO
+                            // Lo aggiungiamo solo se l'AI ha trovato un valore valido (non vuoto)
+                            if (f.data?.doc_type && DOCUWARE_CONFIG.fields.docType) {
+                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.docType, "Item": f.data.doc_type, "ItemElementName": "String" });
+                            }
+
+                            // E. FASE DEL PROGETTO (FASE_DEL_PROGETTO) - NUOVO
+                            // Lo aggiungiamo solo se l'AI ha trovato un valore valido (non vuoto)
+                            if (f.data?.project_phase && DOCUWARE_CONFIG.fields.projectPhase) {
+                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.projectPhase, "Item": f.data.project_phase, "ItemElementName": "String" });
+                            }
+
+                            // 4. SCRITTURA SU DOCUWARE (PUT)
+                            if (fieldsToUpdate.length > 0) {
+                                const fieldRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents/${docId}/Fields`, {
+                                    method: 'PUT', body: JSON.stringify({ "Field": fieldsToUpdate }), credentials: 'include',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+                                });
+                                
+                                if (fieldRes.ok) log("   🏷️ Dati scritti (Tipo/Fase)");
+                                else {
+                                    const errText = await fieldRes.text();
+                                    console.error("Errore Indexing:", errText);
+                                    log("   ⚠️ File OK, ma errore dati (vedi console)");
+                                }
+                            } else {
+                                log("   ℹ️ File OK (Nessun dato da scrivere)");
+                            }
+
+                        } catch (e) { log(`❌ Errore: ${e.message}`); }
+                        
+                        // Pausa di sicurezza per il server
+                        await new Promise(r => setTimeout(r, 300));
                     }
                     log("--- FINE ---"); setDwStatus('done');
                     setTimeout(() => setFiles([]), 3000);
                 } catch (e) {
-                    log(`❌ ERRORE CRITICO: ${e.message}`);
+                    log(`❌ ERRORE SISTEMA: ${e.message}`);
                     setDwStatus('error');
                 }
             };
@@ -955,6 +998,7 @@
     </script>
 </body>
 </html>
+
 
 
 
