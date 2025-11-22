@@ -536,18 +536,40 @@
                 }
             };
 
-            // --- DRAG & DROP FIX ---
-            const handleDrag = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
+            // --- DRAG & DROP FIX (OTTIMIZZATO) ---
+                        // 1. DragEnter: Si attiva SOLO quando entri nell'area. Attiva la grafica.
+            const handleDragEnter = (e) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+                    setDragActive(true); 
+                }
+            };
+
+            // 2. DragOver: Deve SOLO prevenire il default per permettere il drop. 
+            // NON chiamare setDragActive qui per evitare render infiniti e lag.
+            const handleDragOver = (e) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+            };
+
+            // 3. DragLeave: Gestisce l'uscita evitando sfarfallii sui figli
             const handleDragLeave = (e) => { 
-                e.preventDefault(); e.stopPropagation(); 
-                // Se il mouse esce verso un figlio, non disattivare
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                // Se il mouse esce verso un elemento figlio interno, ignoriamo l'uscita
                 if (e.currentTarget.contains(e.relatedTarget)) return;
                 setDragActive(false); 
             };
+
+            // 4. Drop: Gestisce il rilascio
             const handleDrop = (e) => { 
-                e.preventDefault(); e.stopPropagation(); setDragActive(false); 
-                if(e.dataTransfer.files[0]) {
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                setDragActive(false); 
+                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     setLoadingFiles(true);
+                    // Piccolo timeout per dare tempo alla UI di aggiornarsi
                     setTimeout(() => {
                         const newFiles = Array.from(e.dataTransfer.files).map(file => ({
                             id: Math.random().toString(36).substr(2, 9),
@@ -555,7 +577,7 @@
                         }));
                         setFiles(prev => [...prev, ...newFiles]);
                         setLoadingFiles(false);
-                    }, 300);
+                    }, 100);
                 }
             };
 
@@ -589,33 +611,39 @@
                     <main className="max-w-7xl mx-auto p-6">
                         {!hasStarted && (
                             <div 
-                                // CORREZIONE: Aggiunto onClick per attivare l'input manualmente
+                                // Click per aprire selezione manuale
                                 onClick={() => fileInputRef.current.click()}
-                                className={`group relative rounded-3xl p-12 text-center transition-all duration-300 ease-out cursor-pointer overflow-hidden ${dragActive ? 'bg-blue-50 border-4 border-blue-500 shadow-xl scale-[1.01]' : 'bg-white border-4 border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg'}`}
-                                onDragEnter={handleDrag} 
+                                // CLASSI CSS MODIFICATE: Rimosso 'scale-[1.01]' e 'transition-all' dallo stato attivo per stabilità
+                                className={`group relative rounded-3xl p-12 text-center ease-out cursor-pointer overflow-hidden border-4 ${
+                                    dragActive 
+                                    ? 'bg-blue-50 border-blue-500 shadow-xl' // Niente scale qui!
+                                    : 'bg-white border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg transition-all duration-300'
+                                }`}
+                                // EVENTI ASSEGNATI CORRETTAMENTE
+                                onDragEnter={handleDragEnter} 
                                 onDragLeave={handleDragLeave} 
-                                onDragOver={handleDrag}
+                                onDragOver={handleDragOver}
                                 onDrop={handleDrop}
                             >
-                                {/* CORREZIONE: Input nascosto e collegato al Ref */}
                                 <input 
                                     type="file" 
                                     multiple 
                                     ref={fileInputRef}
                                     style={{ display: 'none' }}
                                     onChange={(e) => {
-                                    if(e.target.files[0]) {
-                                        setLoadingFiles(true);
-                                        setTimeout(() => {
-                                            const newFiles = Array.from(e.target.files).map(file => ({
-                                                id: Math.random().toString(36).substr(2, 9),
-                                                file, originalName: file.name, status: 'pending', data: null
-                                            }));
-                                            setFiles(prev => [...prev, ...newFiles]);
-                                            setLoadingFiles(false);
-                                        }, 300);
-                                    }
-                                }} />
+                                        if(e.target.files && e.target.files.length > 0) {
+                                            setLoadingFiles(true);
+                                            setTimeout(() => {
+                                                const newFiles = Array.from(e.target.files).map(file => ({
+                                                    id: Math.random().toString(36).substr(2, 9),
+                                                    file, originalName: file.name, status: 'pending', data: null
+                                                }));
+                                                setFiles(prev => [...prev, ...newFiles]);
+                                                setLoadingFiles(false);
+                                            }, 300);
+                                        }
+                                    }} 
+                                />
                                 
                                 <div className="relative z-0 flex flex-col items-center gap-5 pointer-events-none">
                                     <div className={`p-5 rounded-full transition-colors duration-300 ${loadingFiles ? 'bg-blue-100 text-blue-600 animate-bounce' : 'bg-slate-100 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50'}`}>
@@ -884,6 +912,7 @@
     </script>
 </body>
 </html>
+
 
 
 
