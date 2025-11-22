@@ -15,6 +15,8 @@
     <!-- 3. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <script src="prompts.js"></script>
+
     <style>
         /* Font personalizzato simile a Century Gothic */
         @import url('https://fonts.googleapis.com/css2?family=Didact+Gothic&display=swap');
@@ -105,64 +107,13 @@
             );
         };
 
-// --- PROMPTS DI SISTEMA AGGIORNATI (v1.04 - Stile Istituzionale GEM) ---
+        // --- PROMPTS DI SISTEMA ---
         
-        const SYSTEM_PROMPT_RENAME = `
-        Sei un assistente per l'Ufficio Tecnico di Monteceneri. Estrai metadati per rinominare il file.
-        Regole:
-        1. DATA: AAAA MM GG (Priorità: Lettera > Firma > Timbro). Se incerta: "0000 00 00".
-        2. ENTE: Nome specifico (es. "Ufficio dei corsi d'acqua"). Usa Title Case.
-        3. OGGETTO: Sintesi breve (max 120 car).
-        Output JSON: { "date_year": "AAAA", "date_month": "MM", "date_day": "GG", "entity": "Ente", "subject": "Oggetto" }
-        `;
-
-        const SYSTEM_PROMPT_INTERNAL_SUMMARY = `
-        Agisci come funzionario esperto del Comune di Monteceneri.
-        Il tuo compito è sintetizzare il documento applicando i principi di: Sostanza > Forma (no ripetizioni) e Chiarezza.
-        
-        PROTOCOLLO FORMATTAZIONE:
-        - USA SOLO TESTO SEMPLICE.
-        - VIETATO MARKDOWN: Non usare asterischi (**), cancelletti (##) o elenchi puntati formattati.
-        - Usa MAIUSCOLO per i titoli delle sezioni.
-        
-        STANDARD LOCALI:
-        - Valuta: "fr. 100.-"
-        - Enti: "Municipio", "Cantone" (Maiuscolo).
-        - Mappali: "mappale [X] RFD Monteceneri sez. [Sezione]".
-        
-        OUTPUT RICHIESTO:
-        SINTESI
-        [Un unico paragrafo denso e fluido. Unisci i concetti usando connettivi logici.]
-        
-        PUNTI CHIAVE
-        - Municipio: [Decisioni/Azioni se presenti]
-        - Ufficio Tecnico: [Verifiche/Sopralluoghi se presenti]
-        
-        SCADENZE E IMPORTI
-        [Date esplicite e cifre in formato fr.]
-        `;
-
-        const SYSTEM_PROMPT_DIPLOMATIC = `
-        Agisci come Segretario Comunale del Comune di Monteceneri (Ticino).
-        Il tuo compito è redigere una risposta o un testo di accompagnamento con stile istituzionale, cortese e diretto.
-
-        PROTOCOLLO FORMATTAZIONE:
-        - USA SOLO TESTO SEMPLICE. Niente Markdown.
-        - NESSUNA NOTA FINALE. Restituisci SOLO il testo della mail/lettera pronto all'uso.
-        
-        STANDARD LOCALI:
-        - Enti: Comune, Cantone, Municipio (Maiuscolo).
-        - Valuta: "fr. 100.-" o "fr. 100.50".
-        - Mappali: "mappale [X] RFD Monteceneri sez. [Sezione]" (Sezioni: Bironico, Medeglia, Camignolo, Rivera, Sigirino).
-        - Legale: Usa "crescita in giudicato" se pertinente.
-
-        CASISTICA:
-        A) Reclami/Richieste formali: Scrivi una BOZZA DI RISPOSTA. Tono rassicurante ma fermo. Conferma ricezione, indica l'iter (es. "sottoporremo al Municipio").
-        B) Documenti descrittivi (Rapporti/Piani): Scrivi una MAIL DI ACCOMPAGNAMENTO sintetica per l'invio ("Si trasmette per opportuna conoscenza...").
-
-        OUTPUT:
-        Scrivi direttamente il testo della comunicazione, senza premesse o commenti.
-        `;
+        const PROMPTS = window.MONTECENERI_PROMPTS || {
+            RENAME: "ERRORE: File prompts.js non trovato.",
+            SUMMARY: "ERRORE: File prompts.js non trovato.",
+            DIPLOMATIC: "ERRORE: File prompts.js non trovato."
+        };
 
         // --- CONFIGURAZIONE DOCUWARE ---
         const DOCUWARE_CONFIG = {
@@ -436,7 +387,7 @@
                     setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'processing' } : x));
                     try {
                         const prep = await prepareFileForGemini(f.file);
-                        const res = await callGemini(prep, "Estrai i metadati.", SYSTEM_PROMPT_RENAME, true);
+                        const res = await callGemini(prep, "Estrai i metadati.", PROMPTS.RENAME, true);
                         const json = JSON.parse(res.replace(/```json|```/g, '').trim());
                         
                         let docDate = null;
@@ -463,7 +414,7 @@
                 setAnalysisResult(null);
 
                 // Seleziona il prompt corretto in base al tasto premuto
-                let promptSystem = type === 'diplomatic_response' ? SYSTEM_PROMPT_DIPLOMATIC : SYSTEM_PROMPT_INTERNAL_SUMMARY;
+                let promptSystem = type === 'diplomatic_response' ? PROMPTS.DIPLOMATIC : PROMPTS.SUMMARY;
 
                 try {
                     const preparedData = await prepareFileForGemini(activeAnalysisFile.file);
@@ -987,6 +938,7 @@
     </script>
 </body>
 </html>
+
 
 
 
