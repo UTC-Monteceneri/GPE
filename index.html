@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rinominatore Posta v1.00 - Comune di Monteceneri</title>
+    
+    <!-- 1. Stili CSS (Tailwind) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. React & ReactDOM (CDN stabili) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Font personalizzato simile a Century Gothic */
+        @import url('https://fonts.googleapis.com/css2?family=Didact+Gothic&display=swap');
+
+        body { 
+            font-family: 'Didact Gothic', 'Century Gothic', 'AppleGothic', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b;
+        }
+        
+        /* Animazioni */
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        .slide-up { animation: slideUp 0.4s ease-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Progress bar animata */
+        .progress-bar-striped {
+            background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        @keyframes progress-bar-stripes {
+            0% { background-position: 1rem 0; }
+            100% { background-position: 0 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Script dell'Applicazione -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONE INTEGRATE ---
+        const Icon = ({ name, className, ...props }) => {
+            const icons = {
+                Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>,
+                FileText: <g><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></g>,
+                Check: <polyline points="20 6 9 17 4 12"/>,
+                AlertCircle: <g><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></g>,
+                RefreshCw: <g><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g>,
+                X: <g><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></g>,
+                Edit2: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>,
+                ArrowUpDown: <g><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></g>,
+                Loader2: <path d="M21 12a9 9 0 1 1-6.219-8.56"/>,
+                Sparkles: <g><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></g>,
+                MessageSquare: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
+                Copy: <g><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></g>,
+                AlignLeft: <g><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></g>,
+                Shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+                FileArchive: <g><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="20" r="2"/><path d="M10 15v2"/><path d="M12.4 13a4 4 0 0 0-4.8 0"/></g>,
+                FileSpreadsheet: <g><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></g>,
+                FileType2: <g><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M9 13v-1h6v1"/><path d="M12 12v6"/><path d="M11 18h2"/></g>,
+                Mail: <g><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></g>,
+                Database: <g><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></g>,
+                AlertTriangle: <g><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></g>,
+                Calendar: <g><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></g>,
+                UploadCloud: <g><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></g>,
+                ExternalLink: <g><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></g>,
+                Lock: <g><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>,
+                Info: <g><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></g>,
+                Settings: <g><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></g>,
+                ArrowRight: <path d="M5 12h14M12 5l7 7-7 7"/>,
+                RotateCcw: <g><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 16"/><path d="M3 5v11h11"/></g>
+            };
+
+            if (!icons[name]) return null;
+
+            return (
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="24" 
+                    height="24" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    className={className} 
+                    {...props}
+                >
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        // --- PROMPTS DI SISTEMA ---
+        const SYSTEM_PROMPT_RENAME = `
+        Sei un assistente amministrativo esperto per l'Ufficio Tecnico del Comune di Monteceneri (Ticino, Svizzera).
+        Il tuo compito è analizzare documenti (PDF, Immagini, Testo da Office) ed estrarre metadati per rinominare il file.
+
+        Regole di Estrazione:
+        1. DATA: Cerca la data del documento nel formato AAAA MM GG.
+        - Priorità: Data della lettera > Data firma > Data timbro.
+        - Se la data non è presente o incerta, usa "0000 00 00".
+        2. ENTE/PERSONA:
+        - Se è un ufficio cantonale ticinese, usa il nome specifico (es. "Ufficio dei corsi d'acqua"). NON usare "Repubblica e Cantone Ticino".
+        - FORMATO: Usa sempre "Nome Cognome" (Title Case). NON usare il TUTTO MAIUSCOLO (es: "Mario Rossi", non "MARIO ROSSI"), a meno che non sia un acronimo (es. CDALED, AIL).
+        - Se assente o illeggibile, lascia stringa vuota "".
+        3. OGGETTO:
+        - Sintesi breve (max 120 caratteri).
+        - Rimuovi "Oggetto:", "Concerna:", "Rif:".
+        - Evita ripetizioni dell'ente.
+
+        Formato Output richiesto (JSON):
+        {
+        "date_year": "AAAA",
+        "date_month": "MM",
+        "date_day": "GG",
+        "entity": "Nome Ente",
+        "subject": "Oggetto sintetico"
+        }
+        `;
+
+        const SYSTEM_PROMPT_INTERNAL_SUMMARY = `
+        Sei un assistente dell'Ufficio Tecnico di Monteceneri.
+        Prepara la bozza di un'email interna rivolta a un collaboratore o al Municipio.
+        Obiettivo: Riassumere il contenuto per una rapida presa visione.
+
+        IMPORTANTE: Non usare formattazione Markdown. Usa solo testo semplice.
+
+        Struttura richiesta:
+        1. Un unico paragrafo denso che riassume il contenuto.
+        2. Evidenzia chiaramente:
+        - Eventuali richieste formulate.
+        - Scadenze temporali esplicite o implicite.
+        - Importi finanziari se presenti (formato fr. 100.-).
+
+        Non mettere saluti iniziali.
+        `;
+
+        const SYSTEM_PROMPT_DIPLOMATIC = `
+        Agisci come Segretario Comunale o funzionario esperto del Comune di Monteceneri (Ticino).
+        Il tuo compito è rielaborare i contenuti del documento per creare una bozza di risposta (lettera o e-mail).
+
+        ⚠️ PROTOCOLLO DI OUTPUT (RIGIDO):
+        SILENZIO ASSOLUTO: Non scrivere MAI frasi come "Ecco il testo".
+        NO MARKDOWN: Usa solo testo puro.
+
+        STRUTTURA:
+        - Prima riga: Il testo rielaborato (pronto per il copia-incolla).
+        - (Riga vuota)
+        - Ultima sezione (Opzionale): Una lista puntata sintetica [Note di Intervento].
+
+        STANDARD LOCALI:
+        - Enti: Comune, Cantone, Municipio (Maiuscolo).
+        - Valute: fr. 100.- o fr. 100.50.
+        - Mappali: mappale [X] RFD Monteceneri sez. [Sezione].
+        - Legale: Mantieni "crescita in giudicato".
+        `;
+
+        // --- CONFIGURAZIONE DOCUWARE ---
+        const DOCUWARE_CONFIG = {
+            // Link corretto per il login web
+            loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/", 
+            // Link API corretto (case sensitive)
+            baseUrl: "https://tommaso.tectel.ch/docuware/Platform",
+            basketId: "b_aaeb8717-6b54-421e-a15e-458e3f783357",
+        };
+
+        // --- COMPONENTE LOGO MONTECENERI ---
+        const LogoMonteceneri = () => (
+            <svg viewBox="0 0 320 100" className="h-16 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g transform="translate(10, 5) scale(0.8)">
+                <defs>
+                    <clipPath id="shieldMask">
+                    <path d="M0,0 H100 V65 C100,95 50,115 50,115 C50,115 0,95 0,65 V0 Z" />
+                    </clipPath>
+                </defs>
+
+                <g clipPath="url(#shieldMask)">
+                    <rect x="0" y="0" width="50" height="120" fill="#1e3a8a" />
+                    <rect x="50" y="0" width="50" height="120" fill="#d97706" />
+                    <path d="M0,80 L50,45 V120 H0 Z" fill="#d97706" />
+                    <path d="M100,80 L50,45 V120 H100 Z" fill="#1e3a8a" />
+                    <circle cx="50" cy="45" r="14" fill="#b91c1c" />
+                    <rect x="44" y="62" width="12" height="6" fill="#b91c1c" />
+                    <rect x="44" y="72" width="12" height="6" fill="#b91c1c" />
+                    <rect x="44" y="82" width="12" height="6" fill="#b91c1c" />
+                    <rect x="44" y="92" width="12" height="6" fill="#b91c1c" />
+                </g>
+                </g>
+                <text x="110" y="48" fontFamily="Helvetica, Arial, sans-serif" fontSize="26" fill="#1e3a8a" fontWeight="400" letterSpacing="0.5">Comune di</text>
+                <text x="110" y="78" fontFamily="Helvetica, Arial, sans-serif" fontSize="26" fill="#1e3a8a" fontWeight="bold" letterSpacing="0.5">Monteceneri</text>
+            </svg>
+        );
+
+        // --- COMPONENTE BARRA PROGRESSO ---
+        const ProgressBar = ({ progress, total, label, color = "bg-blue-600" }) => (
+            <div className="w-full mt-2 animate-in fade-in">
+                <div className="flex justify-between text-xs text-slate-500 mb-1 font-medium">
+                    <span>{label}</span>
+                    <span>{progress} / {total}</span>
+                </div>
+                <div className="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                        className={`h-full ${color} transition-all duration-500 ease-out progress-bar-striped`} 
+                        style={{ width: `${total > 0 ? (progress / total) * 100 : 0}%` }}
+                    ></div>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const fileInputRef = React.useRef(null); 
+
+            // STATO CONFIGURAZIONE
+            const [config, setConfig] = useState({
+                apiKey: '', // Vuoto di default
+                dwUser: '',
+                dwPass: '',
+            });
+            
+            const [showConfig, setShowConfig] = useState(false);
+            
+            useEffect(() => {
+                const savedConfig = localStorage.getItem('monteceneri_config');
+                if (savedConfig) {
+                    setConfig(JSON.parse(savedConfig));
+                } else {
+                    setShowConfig(true);
+                }
+            }, []);
+
+            const saveConfig = (newConfig) => {
+                setConfig(newConfig);
+                localStorage.setItem('monteceneri_config', JSON.stringify(newConfig));
+                setShowConfig(false);
+            };
+
+            // STATI APP
+            const [files, setFiles] = useState([]);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [hasStarted, setHasStarted] = useState(false);
+            const [progress, setProgress] = useState({ current: 0, total: 0 });
+            const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+            const [dragActive, setDragActive] = useState(false);
+            const [loadingFiles, setLoadingFiles] = useState(false);
+            
+            // Stati librerie esterne
+            const [libsLoaded, setLibsLoaded] = useState({ zip: false, mammoth: false, xlsx: false });
+            const [libErrors, setLibErrors] = useState([]);
+            
+            // MODALI & ANALISI
+            const [editingFileId, setEditingFileId] = useState(null);
+            const [editForm, setEditForm] = useState({ filename: '' });
+            const [activeAnalysisFile, setActiveAnalysisFile] = useState(null);
+            const [analysisType, setAnalysisType] = useState('internal_summary'); 
+            const [analysisResult, setAnalysisResult] = useState(null);
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+            // DOCUWARE
+            const [dwModalOpen, setDwModalOpen] = useState(false);
+            const [dwStatus, setDwStatus] = useState('idle'); 
+            const [dwLog, setDwLog] = useState([]);
+
+             // Reset automatico stato hasStarted quando la lista si svuota
+            useEffect(() => {
+                if (files.length === 0) {
+                    setHasStarted(false);
+                    setLoadingFiles(false);
+                }
+            }, [files.length]);
+
+
+            // Caricamento dinamico librerie
+            useEffect(() => {
+                const loadScriptWithFallback = async (id, urls) => {
+                    for (const url of urls) {
+                        try {
+                            await new Promise((resolve, reject) => {
+                                if (document.getElementById(id)) { resolve(); return; }
+                                const script = document.createElement('script');
+                                script.src = url;
+                                script.id = id;
+                                script.async = true;
+                                script.onload = resolve;
+                                script.onerror = () => {
+                                    document.head.removeChild(script);
+                                    reject(new Error(`Failed to load ${url}`));
+                                };
+                                document.head.appendChild(script);
+                            });
+                            return true;
+                        } catch (e) {
+                            console.warn(`Tentativo fallito per ${id} su ${url}, provo il prossimo...`);
+                        }
+                    }
+                    return false;
+                };
+
+                const loadAll = async () => {
+                    const zipOk = await loadScriptWithFallback("jszip-script", ["https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"]);
+                    setLibsLoaded(prev => ({ ...prev, zip: zipOk }));
+                    if (!zipOk) setLibErrors(prev => [...prev, "ZIP"]);
+
+                    const mammothOk = await loadScriptWithFallback("mammoth-script", ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js", "https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"]);
+                    setLibsLoaded(prev => ({ ...prev, mammoth: mammothOk }));
+                    if (!mammothOk) setLibErrors(prev => [...prev, "Word"]);
+
+                    const xlsxOk = await loadScriptWithFallback("xlsx-script", ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"]);
+                    setLibsLoaded(prev => ({ ...prev, xlsx: xlsxOk }));
+                    if (!xlsxOk) setLibErrors(prev => [...prev, "Excel"]);
+                };
+
+                loadAll();
+            }, []);
+
+            const criticalLibsReady = libsLoaded.zip;
+
+            // --- ORDINAMENTO E LOGICA FILE ---
+            const requestSort = (key) => {
+                let direction = 'ascending';
+                if (sortConfig.key === key && sortConfig.direction === 'ascending') direction = 'descending';
+                setSortConfig({ key, direction });
+            };
+
+            useEffect(() => {
+                if (sortConfig.key !== null) {
+                    const sortedFiles = [...files].sort((a, b) => {
+                        let aVal = sortConfig.key === 'docDate' ? (a.dateObject ? a.dateObject.getTime() : 0) : a[sortConfig.key];
+                        let bVal = sortConfig.key === 'docDate' ? (b.dateObject ? b.dateObject.getTime() : 0) : b[sortConfig.key];
+                        if (sortConfig.key === 'generatedName') {
+                            aVal = a.processed ? formFinalFilename(a.data) : 'zzz';
+                            bVal = b.processed ? formFinalFilename(b.data) : 'zzz';
+                        }
+                        if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+                        if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+                        return 0;
+                    });
+                    setFiles(sortedFiles);
+                }
+            }, [sortConfig]);
+
+            // --- LOGICA FILE ---
+            const formFinalFilename = (data) => {
+                if (!data) return "";
+                const sanitize = (str) => str ? str.replace(/[\\/:*?"<>|]/g, '').trim() : "";
+                const entity = sanitize(data.entity);
+                const subject = sanitize(data.subject);
+                return entity && entity.toLowerCase() !== 's.n.' ? `${entity}, ${subject}` : subject;
+            };
+
+            const readFileSafe = async (file, method) => {
+                if (method === 'arrayBuffer') return await file.arrayBuffer();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            const prepareFileForGemini = async (file) => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (['jpg', 'jpeg', 'png', 'pdf'].includes(ext)) {
+                    const dataUrl = await readFileSafe(file, 'dataURL');
+                    let encoded = dataUrl.toString().replace(/^data:(.*,)?/, '');
+                    if ((encoded.length % 4) > 0) encoded += '='.repeat(4 - (encoded.length % 4));
+                    return { type: 'binary', mime: file.type, content: encoded };
+                }
+                // Gestione Word
+                if (['docx'].includes(ext)) {
+                    if (!libsLoaded.mammoth || !window.mammoth) return { type: 'error', content: '' };
+                    const arrayBuffer = await readFileSafe(file, 'arrayBuffer');
+                    const result = await window.mammoth.extractRawText({ arrayBuffer });
+                    return { type: 'text', content: result.value };
+                }
+                // Gestione Excel
+                if (['xlsx', 'xls', 'csv'].includes(ext)) {
+                    if (!libsLoaded.xlsx || !window.XLSX) return { type: 'error', content: '' };
+                    const arrayBuffer = await readFileSafe(file, 'arrayBuffer');
+                    const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const csvText = window.XLSX.utils.sheet_to_csv(worksheet);
+                    return { type: 'text', content: csvText };
+                }
+                return { type: 'error', content: '' }; 
+            };
+
+            const callGemini = async (fileData, prompt, jsonMode = false) => {
+                if (!config.apiKey) throw new Error("API Key non configurata nelle impostazioni!");
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${config.apiKey}`;
+                
+                let userPart;
+                if (fileData.type === 'binary') {
+                    userPart = { inline_data: { mime_type: fileData.mime, data: fileData.content } };
+                } else {
+                    // Se è testo (Word/Excel), lo inviamo come text part
+                    userPart = { text: `DOCUMENTO ESTRATTO:\n${fileData.content}` };
+                }
+                
+                const finalPrompt = SYSTEM_PROMPT_RENAME + "\n\n" + prompt;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: finalPrompt }, userPart] }],
+                        generationConfig: jsonMode ? { response_mime_type: "application/json" } : {}
+                    })
+                });
+                if (!response.ok) throw new Error(`Errore API: ${response.status}`);
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            };
+
+            // --- PROCESSO DI ANALISI ---
+            const processFiles = async () => {
+                if (!config.apiKey) { setShowConfig(true); return; }
+                const todo = files.filter(f => f.status === 'pending' || f.status === 'error');
+                if (todo.length === 0) return;
+
+                setIsProcessing(true); setHasStarted(true); setProgress({ current: 0, total: todo.length });
+                let count = 0;
+
+                for (const f of todo) {
+                    setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'processing' } : x));
+                    try {
+                        const prep = await prepareFileForGemini(f.file);
+                        const res = await callGemini(prep, "Analizza questo documento.", true);
+                        const json = JSON.parse(res.replace(/```json|```/g, '').trim());
+                        
+                        let docDate = null;
+                        if (json.date_year && json.date_year !== "0000") {
+                            docDate = new Date(parseInt(json.date_year), parseInt(json.date_month)-1, parseInt(json.date_day), 12);
+                        } else { docDate = new Date(f.file.lastModified); }
+
+                        setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'success', data: json, processed: true, dateObject: docDate } : x));
+                    } catch (e) {
+                        setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'error', errorMessage: e.message } : x));
+                    }
+                    count++; setProgress({ current: count, total: todo.length });
+                }
+                setIsProcessing(false);
+            };
+
+            // --- FIX AI TOOLS: FUNZIONE DEDICATA PER GLI STRUMENTI ---
+            const handleToolAnalysis = async (type) => {
+                if (!activeAnalysisFile) return;
+                if (!config.apiKey) { alert("API Key mancante!"); setShowConfig(true); return; }
+                
+                setAnalysisType(type);
+                setIsAnalyzing(true);
+                setAnalysisResult(null);
+
+                let prompt = type === 'diplomatic_response' ? SYSTEM_PROMPT_DIPLOMATIC : SYSTEM_PROMPT_INTERNAL_SUMMARY;
+
+                try {
+                    const preparedData = await prepareFileForGemini(activeAnalysisFile.file);
+                    // Chiamata esplicita NON in JSON mode per il testo libero
+                    const resultText = await callGemini(preparedData, prompt, false); 
+                    setAnalysisResult(resultText);
+                } catch (e) {
+                    setAnalysisResult("Errore durante l'analisi: " + e.message);
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            };
+
+// --- DOCUWARE UPLOAD (CORRETTO) ---
+            const handleDocuWareUpload = async () => {
+                if (!config.dwUser || !config.dwPass) { alert("Configura Username e Password nelle impostazioni!"); setShowConfig(true); return; }
+                const todo = files.filter(f => f.status === 'success' || f.manualOverride);
+                if (todo.length === 0) return;
+
+                setDwStatus('logging_in'); setDwLog([]);
+                const log = (m) => setDwLog(p => [...p, m]);
+                
+                log("Login su Tommaso...");
+                try {
+                    const form = new URLSearchParams();
+                    form.append('UserName', config.dwUser);
+                    form.append('Password', config.dwPass);
+                    form.append('RememberMe', 'false');
+
+                    // CORREZIONE 1: Uso DOCUWARE_CONFIG.baseUrl invece di config.dwUrl
+                    const loginRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/Account/Logon`, {
+                        method: 'POST', body: form, credentials: 'include',
+                        headers: { 
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json' 
+                        }
+                    });
+
+                    if (!loginRes.ok) throw new Error(`Login Error: ${loginRes.status}`);
+                    log("✅ Login OK. Caricamento...");
+                    setDwStatus('uploading');
+
+                    let success = 0;
+                    for (const f of todo) {
+                        const ext = f.originalName.split('.').pop();
+                        const name = f.manualOverride || formFinalFilename(f.data);
+                        const filename = `${name}.${ext}`;
+                        log(`>> ${filename}`);
+                        
+                        try {
+                            const fd = new FormData();
+                            fd.append('file', f.file, filename);
+                            // CORREZIONE 2: Uso DOCUWARE_CONFIG.baseUrl e DOCUWARE_CONFIG.basketId
+                            const upRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents`, {
+                                method: 'POST', body: fd, credentials: 'include',
+                                headers: { 'Accept': 'application/json' }
+                            });
+                            if (upRes.ok) { log("✅ OK"); success++; }
+                            else { log(`❌ Errore ${upRes.status}`); }
+                        } catch (e) { log(`❌ Errore Rete`); }
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                    log("--- FINE ---"); setDwStatus('done');
+                    setTimeout(() => setFiles([]), 3000);
+                } catch (e) {
+                    log(`❌ ERRORE CRITICO: ${e.message}`);
+                    setDwStatus('error');
+                }
+            };
+
+            // --- DRAG & DROP FIX ---
+            const handleDrag = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
+            const handleDragLeave = (e) => { 
+                e.preventDefault(); e.stopPropagation(); 
+                // Se il mouse esce verso un figlio, non disattivare
+                if (e.currentTarget.contains(e.relatedTarget)) return;
+                setDragActive(false); 
+            };
+            const handleDrop = (e) => { 
+                e.preventDefault(); e.stopPropagation(); setDragActive(false); 
+                if(e.dataTransfer.files[0]) {
+                    setLoadingFiles(true);
+                    setTimeout(() => {
+                        const newFiles = Array.from(e.dataTransfer.files).map(file => ({
+                            id: Math.random().toString(36).substr(2, 9),
+                            file, originalName: file.name, status: 'pending', data: null
+                        }));
+                        setFiles(prev => [...prev, ...newFiles]);
+                        setLoadingFiles(false);
+                    }, 300);
+                }
+            };
+
+            // --- UI COMPONENTS ---
+            return (
+                <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 relative">
+                    
+                    {/* HEADER */}
+                    <header className="bg-white border-b-4 border-blue-900 shadow-md sticky top-0 z-20">
+                        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                            <div className="flex items-center gap-6">
+                                <LogoMonteceneri />
+                                <div className="hidden md:block h-10 w-px bg-slate-200"></div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-xl font-bold text-blue-900 tracking-tight">Gestione Posta in Entrata</h2>
+                                        <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded border border-blue-200">v1.00</span>
+                                    </div>
+                                    <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Ufficio Tecnico</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowConfig(true)} className="p-2 text-slate-400 hover:text-blue-700 transition-colors rounded-full hover:bg-slate-100" title="Impostazioni">
+                                    <Icon name="Settings" className="w-6 h-6" />
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* MAIN */}
+                    <main className="max-w-7xl mx-auto p-6">
+                        {!hasStarted && (
+                            <div 
+                                // CORREZIONE: Aggiunto onClick per attivare l'input manualmente
+                                onClick={() => fileInputRef.current.click()}
+                                className={`group relative rounded-3xl p-12 text-center transition-all duration-300 ease-out cursor-pointer overflow-hidden ${dragActive ? 'bg-blue-50 border-4 border-blue-500 shadow-xl scale-[1.01]' : 'bg-white border-4 border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg'}`}
+                                onDragEnter={handleDrag} 
+                                onDragLeave={handleDragLeave} 
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
+                            >
+                                {/* CORREZIONE: Input nascosto e collegato al Ref */}
+                                <input 
+                                    type="file" 
+                                    multiple 
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                    if(e.target.files[0]) {
+                                        setLoadingFiles(true);
+                                        setTimeout(() => {
+                                            const newFiles = Array.from(e.target.files).map(file => ({
+                                                id: Math.random().toString(36).substr(2, 9),
+                                                file, originalName: file.name, status: 'pending', data: null
+                                            }));
+                                            setFiles(prev => [...prev, ...newFiles]);
+                                            setLoadingFiles(false);
+                                        }, 300);
+                                    }
+                                }} />
+                                
+                                <div className="relative z-0 flex flex-col items-center gap-5 pointer-events-none">
+                                    <div className={`p-5 rounded-full transition-colors duration-300 ${loadingFiles ? 'bg-blue-100 text-blue-600 animate-bounce' : 'bg-slate-100 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50'}`}>
+                                        <Icon name={loadingFiles ? "Loader2" : "Upload"} className={`w-10 h-10 ${loadingFiles ? 'animate-spin' : ''}`} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-700 mb-1">{loadingFiles ? "Lettura file in corso..." : "Trascina qui i documenti"}</h3>
+                                        <p className="text-slate-400 text-sm">o clicca per selezionare dal computer</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {files.length > 0 && (
+                            <div className="mt-8 slide-up">
+                                <div className="flex justify-between items-end mb-6">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Icon name="FileText" className="w-5 h-5 text-blue-600" /> Documenti in lavorazione</h3>
+                                        <p className="text-slate-400 text-sm">{files.length} file caricati in lista</p>
+                                    </div>
+                                    
+                                    <div className="flex gap-3">
+                                        <button onClick={processFiles} disabled={isProcessing} className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105 disabled:opacity-70 disabled:scale-100 disabled:cursor-not-allowed">
+                                            {isProcessing ? <Icon name="Loader2" className="w-5 h-5 animate-spin"/> : <Icon name="RefreshCw" className="w-5 h-5"/>} 
+                                            {isProcessing ? "Analisi..." : "Avvia Elaborazione"}
+                                        </button>
+                                        <button onClick={() => downloadAllZip(true)} className="bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-sm transition-all">
+                                            {libsLoaded.zip ? <Icon name="FileArchive" className="w-5 h-5 text-slate-500"/> : <Icon name="Loader2" className="animate-spin w-5 h-5"/>} 
+                                            Scarica ZIP
+                                        </button>
+                                        <button onClick={() => setDwModalOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all transform hover:scale-105">
+                                            <Icon name="UploadCloud" className="w-5 h-5"/> Tommaso
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {isProcessing && (
+                                    <div className="mb-6">
+                                        <ProgressBar progress={progress.current} total={progress.total} label={`Avanzamento Elaborazione: ${progress.current} di ${progress.total} completati`} color="bg-blue-600" />
+                                    </div>
+                                )}
+
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-4">
+                                    <div className="grid grid-cols-12 bg-slate-50 p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 tracking-wider">
+                                        <div className="col-span-4 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('originalName')}>Originale <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
+                                        <div className="col-span-2">Stato</div>
+                                        <div className="col-span-6 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('generatedName')}>Proposta <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
+                                    </div>
+                                    <div className="divide-y divide-slate-100">
+                                        {files.map(f => (
+                                            <div key={f.id} className="grid grid-cols-12 p-4 items-center hover:bg-slate-50 transition-colors">
+                                                <div className="col-span-4 text-sm font-medium text-slate-600 truncate pr-6" title={f.originalName}>{f.originalName}</div>
+                                                <div className="col-span-2">
+                                                    {f.status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">In attesa</span>}
+                                                    {f.status === 'processing' && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Icon name="Loader2" className="w-4 h-4 text-blue-600 animate-spin"/>
+                                                            <span className="text-xs text-blue-600 font-medium">Analisi...</span>
+                                                        </div>
+                                                    )}
+                                                    {f.status === 'success' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="Check" className="w-3 h-3 mr-1"/> Pronto</span>}
+                                                    {f.status === 'error' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100" title={f.errorMessage}><Icon name="AlertCircle" className="w-3 h-3 mr-1"/> Errore</span>}
+                                                </div>
+                                                <div className="col-span-6 text-sm font-medium flex justify-between items-center group">
+                                                    <div className={`truncate w-full ${f.status === 'success' ? 'text-slate-800' : 'text-slate-400 italic'}`}>
+                                                        {f.status === 'success' ? (f.manualOverride || formFinalFilename(f.data)) : (f.status === 'error' ? 'Impossibile rinominare' : '...')}
+                                                    </div>
+                                                    {(f.status === 'success' || f.status === 'error') && (
+                                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all pl-4">
+                                                            <button onClick={() => { setEditForm({ filename: f.manualOverride || formFinalFilename(f.data) }); setEditingFileId(f.id); }} className="p-1.5 hover:bg-blue-50 rounded-md text-slate-400 hover:text-blue-600 transition-colors" title="Modifica Nome"><Icon name="Edit2" className="w-4 h-4"/></button>
+                                                            <button onClick={() => { setActiveAnalysisFile(f); setAnalysisType('internal_summary'); setAnalysisResult(null); }} className="p-1.5 hover:bg-yellow-50 rounded-md text-slate-400 hover:text-yellow-600 transition-colors" title="Analisi AI"><Icon name="Sparkles" className="w-4 h-4"/></button>
+                                                            <button onClick={() => setFiles(prev => prev.filter(x => x.id !== f.id))} className="p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors" title="Rimuovi"><Icon name="X" className="w-4 h-4"/></button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {/* Editor inline */}
+                                                {editingFileId === f.id && (
+                                                    <div className="col-span-12 mt-3 flex gap-2 animate-in fade-in pl-4 pr-4 pb-2 bg-blue-50/50 rounded-lg p-2 -mx-2">
+                                                        <input autoFocus type="text" value={editForm.filename} onChange={e => setEditForm({filename: e.target.value})} className="flex-1 border border-blue-300 shadow-sm p-2 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                                                        <button onClick={() => { setFiles(p => p.map(x => x.id === f.id ? { ...x, manualOverride: editForm.filename } : x)); setEditingFileId(null); }} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-md shadow-sm transition-colors"><Icon name="Check" className="w-4 h-4"/></button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* MODALE SETTINGS (Vault) */}
+                    {showConfig && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200">
+                                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Icon name="Settings" className="w-5 h-5 text-slate-500"/> Configurazione</h2>
+                                <p className="text-sm text-slate-500 mb-6">I dati vengono salvati localmente nel browser.</p>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Google Gemini API Key</label>
+                                        <input type="password" value={config.apiKey} onChange={e => setConfig({...config, apiKey: e.target.value})} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">User Tommaso</label>
+                                            <input type="text" value={config.dwUser} onChange={e => setConfig({...config, dwUser: e.target.value})} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Password</label>
+                                            <input type="password" value={config.dwPass} onChange={e => setConfig({...config, dwPass: e.target.value})} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex justify-end gap-3">
+                                    {config.apiKey && <button onClick={() => setShowConfig(false)} className="text-slate-500 hover:text-slate-700 text-sm px-3 font-medium transition-colors">Annulla</button>}
+                                    <button onClick={() => saveConfig(config)} className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/10 transition-all transform hover:-translate-y-0.5">Salva Configurazione</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODALE DOCUWARE/TOMMASO */}
+                    {dwModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+                                <div className="p-5 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
+                                    <h3 className="font-bold text-orange-900 flex gap-2 items-center"><Icon name="UploadCloud" className="w-5 h-5"/> Caricamento su Tommaso</h3>
+                                    <button onClick={() => { setDwModalOpen(false); setDwStatus('idle'); }} className="text-orange-400 hover:text-orange-600 bg-white/50 hover:bg-white p-1 rounded-full transition-all"><Icon name="X" className="w-5 h-5"/></button>
+                                </div>
+                                <div className="p-6 space-y-6">
+                                    {dwStatus === 'idle' && (
+                                        <>
+                                            <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-800 border border-blue-100 shadow-sm">
+                                                <div className="flex gap-3">
+                                                    <Icon name="Info" className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
+                                                    <div className="leading-relaxed">
+                                                        <strong>Istruzioni per 'Allow CORS':</strong><br/>
+                                                        <ol className="list-decimal ml-4 mt-1 space-y-1 text-xs">
+                                                            <li>Installa l'estensione <a href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank" className="underline font-bold hover:text-blue-900">da qui</a>.</li>
+                                                            <li>Clicca l'icona <strong>C</strong> nel browser per attivarla.</li>
+                                                            <li>Apri le Opzioni e spunta <strong>Access-Control-Allow-Credentials</strong>.</li>
+                                                        </ol>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => window.open(DOCUWARE_CONFIG.loginUrl, '_blank')} className="w-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all group">
+                                                <Icon name="Lock" className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform" /> Sblocca Accesso Server (Login Web)
+                                            </button>
+                                            <div className="border-t border-slate-100 my-4"></div>
+                                            <div className="text-center">
+                                                <p className="text-sm text-slate-500 mb-4">Pronto a caricare <strong className="text-slate-800">{files.filter(f => f.status === 'success' || f.manualOverride).length}</strong> documenti.</p>
+                                                <button onClick={handleDocuWareUpload} className="w-full bg-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-600/20 hover:bg-orange-700 hover:shadow-orange-600/30 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5">
+                                                    <Icon name="UploadCloud" className="w-5 h-5" /> Inizia Caricamento
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                    {(dwStatus === 'logging_in' || dwStatus === 'uploading') && (
+                                        <div>
+                                            <div className="flex flex-col items-center justify-center gap-4 mb-6">
+                                                 <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center"><Icon name="Loader2" className="w-8 h-8 text-orange-500 animate-spin"/></div>
+                                                 <span className="font-bold text-lg text-slate-700">
+                                                    {dwStatus === 'logging_in' ? 'Login in corso...' : 'Caricamento documenti...'}
+                                                </span>
+                                            </div>
+                                            <div className="bg-slate-900 text-slate-300 p-4 rounded-xl text-xs font-mono h-48 overflow-y-auto border border-slate-700 shadow-inner">
+                                                {dwLog.map((l, i) => <div key={i} className="border-b border-slate-800/50 pb-1.5 mb-1.5 last:border-0 last:pb-0 last:mb-0">{l}</div>)}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {(dwStatus === 'done' || dwStatus === 'error') && (
+                                        <div>
+                                            <div className="flex flex-col items-center justify-center gap-4 mb-6">
+                                                {dwStatus === 'done' ? 
+                                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center"><Icon name="Check" className="w-8 h-8 text-green-600"/></div> : 
+                                                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center"><Icon name="AlertCircle" className="w-8 h-8 text-red-600"/></div>
+                                                }
+                                                <span className="font-bold text-lg text-slate-700">{dwStatus === 'done' ? 'Operazione Completata!' : 'Errore Caricamento'}</span>
+                                            </div>
+                                            <div className="bg-slate-900 text-slate-300 p-4 rounded-xl text-xs font-mono h-48 overflow-y-auto border border-slate-700 shadow-inner mb-6">
+                                                {dwLog.map((l, i) => <div key={i} className="border-b border-slate-800/50 pb-1.5 mb-1.5 last:border-0 last:pb-0 last:mb-0">{l}</div>)}
+                                            </div>
+                                            <div className="flex gap-3">
+                                                {dwStatus === 'error' && (
+                                                    <button onClick={() => setDwStatus('idle')} className="flex-1 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                                                        <Icon name="RefreshCw" className="w-4 h-4"/> Riprova
+                                                    </button>
+                                                )}
+                                                <button onClick={() => { setDwModalOpen(false); setDwStatus('idle'); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">Chiudi</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODALE AI */}
+                    {activeAnalysisFile && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
+                            <div className="p-6 border-b flex justify-between items-center bg-white">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-blue-50 p-3 rounded-xl text-blue-700 shadow-sm"><Icon name="Sparkles" className="w-6 h-6"/></div>
+                                    <div>
+                                        <h3 className="font-bold text-xl text-slate-800">Analisi Intelligente</h3>
+                                        <p className="text-xs text-slate-500 truncate max-w-md font-medium mt-0.5">{activeAnalysisFile.manualOverride || formFinalFilename(activeAnalysisFile.data)}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setActiveAnalysisFile(null)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-all"><Icon name="X" className="w-6 h-6"/></button>
+                            </div>
+                            <div className="flex border-b border-slate-200 bg-slate-50/50">
+                                <button onClick={() => { setAnalysisType('internal_summary'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'internal_summary' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                                    <span className="flex items-center justify-center gap-2"><Icon name="AlignLeft" className="w-4 h-4"/> Riassunto Interno</span>
+                                </button>
+                                <button onClick={() => { setAnalysisType('diplomatic_response'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'diplomatic_response' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                                    <span className="flex items-center justify-center gap-2"><Icon name="MessageSquare" className="w-4 h-4"/> Risposta Diplomatica</span>
+                                </button>
+                            </div>
+                            <div className="p-8 flex-1 overflow-y-auto min-h-[400px] bg-white">
+                                {!analysisResult && !isAnalyzing && (
+                                    <div className="text-center mt-16 animate-in fade-in">
+                                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <Icon name="Sparkles" className="w-10 h-10 text-blue-300" />
+                                        </div>
+                                        <h4 className="text-lg font-bold text-slate-700 mb-2">Pronto a generare</h4>
+                                        <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerà il contenuto del documento<br/>per creare il testo richiesto.</p>
+                                        <button onClick={() => handleToolAnalysis(analysisType)} className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl shadow-blue-900/20 transition-all transform hover:-translate-y-1 font-bold flex items-center gap-3 mx-auto text-base">
+                                            <Icon name="Sparkles" className="w-5 h-5"/> Genera {analysisType === 'internal_summary' ? 'Riassunto' : 'Bozza'}
+                                        </button>
+                                    </div>
+                                )}
+                                {isAnalyzing && (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-6 animate-in fade-in">
+                                        <div className="relative">
+                                            <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
+                                            <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
+                                            <Icon name="Sparkles" className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                        </div>
+                                        <p className="font-medium text-slate-600 animate-pulse">Elaborazione in corso...</p>
+                                    </div>
+                                )}
+                                {analysisResult && (
+                                    <div className="animate-in fade-in slide-in-from-bottom-4 h-full flex flex-col">
+                                        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm font-mono text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner flex-1 overflow-y-auto">{analysisResult}</div>
+                                        <div className="mt-6 flex justify-between items-center">
+                                            <span className="text-xs text-slate-400">Generato da Gemini AI</span>
+                                            <button onClick={() => navigator.clipboard.writeText(analysisResult)} className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><Icon name="Copy" className="w-4 h-4"/> Copia testo</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <footer className="mt-20 py-8 text-center border-t border-slate-200 bg-white">
+                    <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">© 2025 Ing. Luca Cayetano • Comune di Monteceneri</p>
+                </footer>
+            </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+
+
+
