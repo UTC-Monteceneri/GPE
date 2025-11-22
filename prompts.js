@@ -31,8 +31,10 @@ REGOLE DI ESTRAZIONE GENERALI (Se non si applicano le regole sopra):
    - Se non trovi la data, lascia le stringhe vuote ("").
 
 2. ENTE (Opzionale - Priorità all'Istituzione):
-   - Se mittente è un Ufficio Cantonale/Federale o una Ditta/Studio: Usa il nome dell'ente (es. "Dipartimento del Territorio", "Studio Rossi").
-   - Se mittente è un privato cittadino (senza ente): Usa "Nome Cognome".
+   - FORMATO: Usa sempre il "Title Case" (Solo Iniziali Maiuscole).
+   - VIETATO: Non scrivere MAI l'ente o il nome in TUTTO MAIUSCOLO (es. NO "DIPARTIMENTO DEL TERRITORIO", SI "Dipartimento del Territorio").
+   - Se mittente è un Ufficio Cantonale/Federale o una Ditta/Studio: Usa il nome dell'ente (es. "Studio Rossi SA", "Ufficio dei Corsi d'Acqua").
+   - Se mittente è un privato cittadino (senza ente): Usa "Nome Cognome" (es. "Mario Rossi", non "MARIO ROSSI").
    - Se non trovi il mittente, lascia la stringa vuota ("").
 
 3. OGGETTO (Obbligatorio):
