@@ -124,11 +124,12 @@
             
             // MAPPATURA CAMPI (Chiave Interna -> Nome Campo su Tommaso)
             fields: {
-                date: "DATA_DOCUMENTO",        // Per la data
-                subject: "NOME_DOCUMENTO",     // Per l'oggetto
-                entity: "ENTE_MITTENTE",       // Per l'ente (opzionale)
-                docType: "TIPO_DOCUMENTO",     // Per il tipo documento
-                projectPhase: "FASE_DEL_PROGETTO" // Per la fase progetto
+                date: "DATA_DOCUMENTO",            // Per la data
+                subject: "NOME_DOCUMENTO",         // Per l'oggetto
+                entity: "ENTE_MITTENTE",           // Per l'ente (opzionale)
+                docType: "TIPO_DOCUMENTO",         // Per il tipo documento
+                projectPhase: "FASE_DEL_PROGETTO", // Per la fase progetto
+                caseNumber: "INCARTO"              // Per il numero dell'incarto
             }
         };
 
@@ -531,6 +532,15 @@
                             // E. FASE DEL PROGETTO
                             if (f.data?.project_phase && DOCUWARE_CONFIG.fields.projectPhase) {
                                 fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.projectPhase, "Item": f.data.project_phase, "ItemElementName": "String" });
+                            }
+
+                            // F. INCARTO (INCARTO) - NUOVO
+                            if (f.data?.case_number && DOCUWARE_CONFIG.fields.caseNumber) {
+                                fieldsToUpdate.push({ 
+                                    "FieldName": DOCUWARE_CONFIG.fields.caseNumber, 
+                                    "Item": f.data.case_number, 
+                                    "ItemElementName": "Int" // O "Int" se il campo su DocuWare è numerico puro
+                                });
                             }
 
                             // 3. COSTRUZIONE RICHIESTA MULTIPART (File + Dati Insieme)
@@ -999,6 +1009,7 @@
     </script>
 </body>
 </html>
+
 
 
 
