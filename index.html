@@ -117,11 +117,28 @@
 
         // --- CONFIGURAZIONE DOCUWARE ---
         const DOCUWARE_CONFIG = {
-            // Link corretto per il login web
+            // ... (loginUrl, baseUrl, basketId rimangono uguali) ...
             loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/", 
-            // Link API corretto (case sensitive)
             baseUrl: "https://tommaso.tectel.ch/docuware/Platform",
             basketId: "b_aaeb8717-6b54-421e-a15e-458e3f783357",
+
+            // MAPPATURA CAMPI (JSON AI -> CAMPI TOMMASO)
+            fields: {
+                // Data (L'AI restituisce date_year/month/day -> index.html costruisce l'oggetto data)
+                date: "DATA_DOCUMENTO", 
+                
+                // Oggetto (L'AI restituisce "subject")
+                subject: "NOME_DOCUMENTO", 
+                
+                // Ente (L'AI restituisce "entity" - Opzionale se vuoi usarlo)
+                entity: "ENTE_MITTENTE", 
+                
+                // Tipo Documento (L'AI restituisce "doc_type")
+                docType: "TIPO_DOCUMENTO", 
+                
+                // Fase Progetto (L'AI restituisce "project_phase")
+                projectPhase: "FASE_DEL_PROGETTO" 
+            }
         };
 
         // --- COMPONENTE LOGO MONTECENERI ---
@@ -938,6 +955,7 @@
     </script>
 </body>
 </html>
+
 
 
 
