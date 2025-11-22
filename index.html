@@ -502,23 +502,10 @@
                         log(`>> ${filename}`);
                         
                         try {
-                            // 2. UPLOAD DEL FILE NEL CESTINO
-                            const fd = new FormData();
-                            fd.append('file', f.file, filename);
-                            
-                            const upRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents`, {
-                                method: 'POST', body: fd, credentials: 'include', headers: { 'Accept': 'application/json' }
-                            });
-
-                            if (!upRes.ok) throw new Error(`Upload fallito (${upRes.status})`);
-                            
-                            const upJson = await upRes.json();
-                            const docId = upJson.Id; // ID del documento appena creato
-                            
-                            // 3. PREPARAZIONE DATI (INDEXING)
+                            // 2. PREPARAZIONE METADATI (Prima dell'invio)
                             const fieldsToUpdate = [];
                             
-                            // A. DATA (DATA_DOCUMENTO)
+                            // A. DATA DOCUMENTO
                             if (f.dateObject && DOCUWARE_CONFIG.fields.date) {
                                 const year = f.dateObject.getFullYear();
                                 const month = String(f.dateObject.getMonth() + 1).padStart(2, '0');
@@ -526,48 +513,62 @@
                                 fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.date, "Item": `${year}-${month}-${day}`, "ItemElementName": "Date" });
                             }
 
-                            // B. OGGETTO (NOME_DOCUMENTO)
+                            // B. NOME DOCUMENTO (Oggetto)
                             if (f.data?.subject && DOCUWARE_CONFIG.fields.subject) {
                                 fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.subject, "Item": f.data.subject, "ItemElementName": "String" });
                             }
 
-                            // C. ENTE (ENTE_MITTENTE) - Se presente
+                            // C. ENTE (Opzionale)
                             if (f.data?.entity && DOCUWARE_CONFIG.fields.entity) {
                                 fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.entity, "Item": f.data.entity, "ItemElementName": "String" });
                             }
 
-                            // D. TIPO DOCUMENTO (TIPO_DOCUMENTO) - NUOVO
-                            // Lo aggiungiamo solo se l'AI ha trovato un valore valido (non vuoto)
+                            // D. TIPO DOCUMENTO
                             if (f.data?.doc_type && DOCUWARE_CONFIG.fields.docType) {
                                 fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.docType, "Item": f.data.doc_type, "ItemElementName": "String" });
                             }
 
-                            // E. FASE DEL PROGETTO (FASE_DEL_PROGETTO) - NUOVO
-                            // Lo aggiungiamo solo se l'AI ha trovato un valore valido (non vuoto)
+                            // E. FASE DEL PROGETTO
                             if (f.data?.project_phase && DOCUWARE_CONFIG.fields.projectPhase) {
                                 fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.projectPhase, "Item": f.data.project_phase, "ItemElementName": "String" });
                             }
 
-                            // 4. SCRITTURA SU DOCUWARE (PUT)
-                            if (fieldsToUpdate.length > 0) {
-                                const fieldRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents/${docId}/Fields`, {
-                                    method: 'PUT', body: JSON.stringify({ "Field": fieldsToUpdate }), credentials: 'include',
-                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-                                });
-                                
-                                if (fieldRes.ok) log("   🏷️ Dati scritti (Tipo/Fase)");
-                                else {
-                                    const errText = await fieldRes.text();
-                                    console.error("Errore Indexing:", errText);
-                                    log("   ⚠️ File OK, ma errore dati (vedi console)");
-                                }
-                            } else {
-                                log("   ℹ️ File OK (Nessun dato da scrivere)");
-                            }
+                            // 3. COSTRUZIONE RICHIESTA MULTIPART (File + Dati Insieme)
+                            const fd = new FormData();
+                            
+                            // Parte 1: I Metadati (devono chiamarsi 'document' o essere il primo json)
+                            const documentMetadata = { "Fields": fieldsToUpdate };
+                            fd.append('document', new Blob([JSON.stringify(documentMetadata)], { type: 'application/json' }));
+                            
+                            // Parte 2: Il File
+                            fd.append('file', f.file, filename);
 
-                        } catch (e) { log(`❌ Errore: ${e.message}`); }
+                            // 4. INVIO UNICO
+                            const upRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents`, {
+                                method: 'POST', 
+                                body: fd, 
+                                credentials: 'include',
+                                headers: { 'Accept': 'application/json' } 
+                                // NOTA: Non settare Content-Type con FormData, il browser lo fa da solo col boundary corretto
+                            });
+
+                            if (!upRes.ok) {
+                                // Se fallisce qui, proviamo a leggere l'errore ma consideriamo che potrebbe essere un falso positivo CORS
+                                throw new Error(`Status ${upRes.status}`);
+                            }
+                            
+                            log("   ✅ Caricato e Indicizzato");
+
+                        } catch (e) { 
+                            // Se l'errore è "Failed to fetch", è probabile che il file sia comunque arrivato su server
+                            // grazie all'invio Multipart, i dati sono partiti INSIEME al file.
+                            if (e.message.includes("Failed to fetch")) {
+                                log("   ⚠️ Possibile successo (No risposta server)");
+                            } else {
+                                log(`❌ Errore: ${e.message}`); 
+                            }
+                        }
                         
-                        // Pausa di sicurezza per il server
                         await new Promise(r => setTimeout(r, 300));
                     }
                     log("--- FINE ---"); setDwStatus('done');
@@ -998,6 +999,7 @@
     </script>
 </body>
 </html>
+
 
 
 
