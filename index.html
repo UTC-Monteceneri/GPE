@@ -538,57 +538,65 @@
                 }
             };
 
-            // --- DRAG & DROP SOLIDO (CON CONTATORE) ---
-            const handleDragEnter = (e) => { 
-                e.preventDefault(); 
+            // --- DRAG & DROP: LOGICA RISCRITTA DA ZERO (COUNTER PATTERN) ---
+            const handleDragEnter = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                dragCounter.current += 1; // Incrementa il contatore
+                dragCounter.current += 1;
                 
-                // Attiva la grafica solo se è il primo ingresso
+                // Attiviamo la grafica se stiamo trascinando qualcosa
                 if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-                    setDragActive(true); 
+                    setDragActive(true);
                 }
             };
 
-            const handleDragOver = (e) => { 
-                e.preventDefault(); 
+            const handleDragLeave = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                // Fondamentale per dire al browser che è una copia valida
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-            };
+                dragCounter.current -= 1;
 
-            const handleDragLeave = (e) => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                dragCounter.current -= 1; // Decrementa il contatore
-
-                // Disattiva SOLO se il contatore torna a zero (cioè siamo usciti davvero da tutto)
-                if (dragCounter.current === 0) {
-                    setDragActive(false); 
+                // Disattiviamo SOLO se il contatore arriva a zero (siamo usciti davvero da tutto)
+                if (dragCounter.current <= 0) {
+                    setDragActive(false);
+                    dragCounter.current = 0; // Reset di sicurezza
                 }
             };
 
-            const handleDrop = (e) => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                
-                // Reset completo
-                setDragActive(false); 
-                dragCounter.current = 0; 
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Questo comando dice al browser: "Sì, qui puoi copiare il file"
+                if (e.dataTransfer) {
+                    e.dataTransfer.dropEffect = 'copy';
+                }
+            };
 
-                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Reset stato visivo
+                setDragActive(false);
+                dragCounter.current = 0;
+
+                // Gestione File
+                const droppedFiles = e.dataTransfer.files;
+                if (droppedFiles && droppedFiles.length > 0) {
                     setLoadingFiles(true);
+                    
+                    // Usiamo un piccolo timeout per dare feedback visivo all'utente
                     setTimeout(() => {
-                        const newFiles = Array.from(e.dataTransfer.files).map(file => ({
+                        const newFiles = Array.from(droppedFiles).map(file => ({
                             id: Math.random().toString(36).substr(2, 9),
                             file, 
                             originalName: file.name, 
                             status: 'pending', 
                             data: null
                         }));
+                        
                         setFiles(prev => [...prev, ...newFiles]);
                         setLoadingFiles(false);
-                    }, 100);
+                    }, 200);
                 }
             };
 
@@ -923,6 +931,7 @@
     </script>
 </body>
 </html>
+
 
 
 
