@@ -30,6 +30,9 @@ Il tuo compito è analizzare il documento e compilare un JSON rigoroso per l'arc
 3. TIPO DOCUMENTO (doc_type):
    - Devi selezionare ESATTAMENTE una stringa dalla lista seguente.
    - Se il documento non rientra chiaramente in nessuna categoria, lascia VUOTO ("").
+   - REGOLE SPECIALI:
+     * "04 Avvisi": Usa SOLO se il titolo contiene la parola "Avviso" (es. "Avviso di pubblicazione", "Avviso alla popolazione").
+     * "20 Corrispondenza": Usa per lettere generiche E per "Domande di allacciamento" (scavo, acqua potabile, occupazione area pubblica).
    - LISTA AMMESSA:
      "00 Apertura incarto", "01 Messaggi Municipali", "02 Risoluzioni Municipali", "03 Rapporti Ufficio tecnico comunale",
      "04 Avvisi", "05 Autorizzazioni, licenze", "06 Accordi, convenzioni", "07 Gestione documenti incarto",
@@ -41,7 +44,7 @@ Il tuo compito è analizzare il documento e compilare un JSON rigoroso per l'arc
    - Seleziona ESATTAMENTE una stringa dalla lista solo se esplicitamente indicata o deducibile con certezza (es. da un'offerta o un piano).
    - Altrimenti lascia VUOTO ("").
    - LISTA AMMESSA:
-     "00 generale", "11 pianificazione strategica", "21 studio preliminare", "31 progetto di massima",
+     "11 pianificazione strategica", "21 studio preliminare", "31 progetto di massima",
      "32 progetto definitivo", "33 progetto di pubblicazione/domanda di costruzione", "41 appalto",
      "51 progetto esecutivo", "52 Esecuzione", "53 Liquidazione", "60 gestione, esercizio".
 
