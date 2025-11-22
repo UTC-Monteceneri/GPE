@@ -223,7 +223,9 @@
         );
 
         const App = () => {
-            const fileInputRef = React.useRef(null); 
+            const fileInputRef = React.useRef(null);
+            // AGGIUNTA: Contatore per stabilizzare il Drag & Drop
+            const dragCounter = React.useRef(0);
 
             // STATO CONFIGURAZIONE
             const [config, setConfig] = useState({
@@ -536,44 +538,53 @@
                 }
             };
 
-            // --- DRAG & DROP FIX (OTTIMIZZATO) ---
-                        // 1. DragEnter: Si attiva SOLO quando entri nell'area. Attiva la grafica.
+            // --- DRAG & DROP SOLIDO (CON CONTATORE) ---
             const handleDragEnter = (e) => { 
                 e.preventDefault(); 
-                e.stopPropagation(); 
+                e.stopPropagation();
+                dragCounter.current += 1; // Incrementa il contatore
+                
+                // Attiva la grafica solo se è il primo ingresso
                 if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
                     setDragActive(true); 
                 }
             };
 
-            // 2. DragOver: Deve SOLO prevenire il default per permettere il drop. 
-            // NON chiamare setDragActive qui per evitare render infiniti e lag.
             const handleDragOver = (e) => { 
                 e.preventDefault(); 
-                e.stopPropagation(); 
+                e.stopPropagation();
+                // Fondamentale per dire al browser che è una copia valida
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
             };
 
-            // 3. DragLeave: Gestisce l'uscita evitando sfarfallii sui figli
             const handleDragLeave = (e) => { 
                 e.preventDefault(); 
                 e.stopPropagation(); 
-                // Se il mouse esce verso un elemento figlio interno, ignoriamo l'uscita
-                if (e.currentTarget.contains(e.relatedTarget)) return;
-                setDragActive(false); 
+                dragCounter.current -= 1; // Decrementa il contatore
+
+                // Disattiva SOLO se il contatore torna a zero (cioè siamo usciti davvero da tutto)
+                if (dragCounter.current === 0) {
+                    setDragActive(false); 
+                }
             };
 
-            // 4. Drop: Gestisce il rilascio
             const handleDrop = (e) => { 
                 e.preventDefault(); 
                 e.stopPropagation(); 
+                
+                // Reset completo
                 setDragActive(false); 
+                dragCounter.current = 0; 
+
                 if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     setLoadingFiles(true);
-                    // Piccolo timeout per dare tempo alla UI di aggiornarsi
                     setTimeout(() => {
                         const newFiles = Array.from(e.dataTransfer.files).map(file => ({
                             id: Math.random().toString(36).substr(2, 9),
-                            file, originalName: file.name, status: 'pending', data: null
+                            file, 
+                            originalName: file.name, 
+                            status: 'pending', 
+                            data: null
                         }));
                         setFiles(prev => [...prev, ...newFiles]);
                         setLoadingFiles(false);
@@ -912,6 +923,7 @@
     </script>
 </body>
 </html>
+
 
 
 
