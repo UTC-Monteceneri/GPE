@@ -630,19 +630,20 @@
                     <main className="max-w-7xl mx-auto p-6">
                         {!hasStarted && (
                             <div 
-                                // Click per aprire selezione manuale
                                 onClick={() => fileInputRef.current.click()}
-                                // CLASSI CSS MODIFICATE: Rimosso 'scale-[1.01]' e 'transition-all' dallo stato attivo per stabilità
-                                className={`group relative rounded-3xl p-12 text-center ease-out cursor-pointer overflow-hidden border-4 ${
-                                    dragActive 
-                                    ? 'bg-blue-50 border-blue-500 shadow-xl' // Niente scale qui!
-                                    : 'bg-white border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg transition-all duration-300'
-                                }`}
-                                // EVENTI ASSEGNATI CORRETTAMENTE
+                                // Eventi Drag & Drop collegati alle nuove funzioni
                                 onDragEnter={handleDragEnter} 
                                 onDragLeave={handleDragLeave} 
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}
+                                className={`
+                                    group relative rounded-3xl p-12 text-center cursor-pointer overflow-hidden border-4 
+                                    transition-colors duration-200 ease-in-out
+                                    ${dragActive 
+                                        ? 'bg-blue-50 border-blue-500 shadow-xl border-solid' 
+                                        : 'bg-white border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg'
+                                    }
+                                `}
                             >
                                 <input 
                                     type="file" 
@@ -664,13 +665,18 @@
                                     }} 
                                 />
                                 
-                                <div className="relative z-0 flex flex-col items-center gap-5 pointer-events-none">
-                                    <div className={`p-5 rounded-full transition-colors duration-300 ${loadingFiles ? 'bg-blue-100 text-blue-600 animate-bounce' : 'bg-slate-100 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50'}`}>
+                                {/* pointer-events-none è CRUCIALE qui: impedisce agli elementi figli di "rubare" il drag */}
+                                <div className="relative z-10 flex flex-col items-center gap-5 pointer-events-none">
+                                    <div className={`p-5 rounded-full transition-all duration-300 ${loadingFiles ? 'bg-blue-100 text-blue-600 scale-110' : 'bg-slate-100 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50'}`}>
                                         <Icon name={loadingFiles ? "Loader2" : "Upload"} className={`w-10 h-10 ${loadingFiles ? 'animate-spin' : ''}`} />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-700 mb-1">{loadingFiles ? "Lettura file in corso..." : "Trascina qui i documenti"}</h3>
-                                        <p className="text-slate-400 text-sm">o clicca per selezionare dal computer</p>
+                                        <h3 className="text-xl font-bold text-slate-700 mb-1">
+                                            {dragActive ? "Rilascia i file qui!" : (loadingFiles ? "Lettura in corso..." : "Trascina qui i documenti")}
+                                        </h3>
+                                        <p className="text-slate-400 text-sm">
+                                            {dragActive ? "Li prenderò al volo" : "o clicca per selezionare dal computer"}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -931,6 +937,7 @@
     </script>
 </body>
 </html>
+
 
 
 
