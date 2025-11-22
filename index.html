@@ -285,44 +285,7 @@ const App = () => {
 
             // --- NUOVO STATO PER ANTEPRIMA ---
             const [previewUrl, setPreviewUrl] = useState(null);
-
-            // Funzioni Helper per gestire Apertura/Chiusura Modifica e Anteprima
-            const startEditing = (file) => {
-                setEditForm({
-                    filename: file.manualOverride || formFinalFilename(file.data),
-                    caseNumber: file.data?.case_number || '',
-                    docType: file.data?.doc_type || '',
-                    projectPhase: file.data?.project_phase || ''
-                });
-                // Crea URL temporaneo per anteprima (funziona per PDF e Immagini)
-                if (file.file) {
-                    const url = URL.createObjectURL(file.file);
-                    setPreviewUrl(url);
-                }
-                setEditingFileId(file.id);
-            };
-
-            const stopEditing = () => {
-                // Importante: liberare memoria
-                if (previewUrl) URL.revokeObjectURL(previewUrl);
-                setPreviewUrl(null);
-                setEditingFileId(null);
-            };
-
-            const saveEdit = (originalFile) => {
-                setFiles(p => p.map(x => x.id === originalFile.id ? { 
-                    ...x, 
-                    manualOverride: editForm.filename,
-                    data: { 
-                        ...x.data, 
-                        case_number: editForm.caseNumber,
-                        doc_type: editForm.docType,
-                        project_phase: editForm.projectPhase
-                    } 
-                } : x)); 
-                stopEditing();
-            };
-
+    
             // Reset automatico stato hasStarted quando la lista si svuota
             useEffect(() => {
                 if (files.length === 0) {
@@ -1146,6 +1109,7 @@ const App = () => {
     </script>
 </body>
 </html>
+
 
 
 
