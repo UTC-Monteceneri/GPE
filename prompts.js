@@ -45,6 +45,12 @@ Il tuo compito è analizzare il documento e compilare un JSON rigoroso per l'arc
      "32 progetto definitivo", "33 progetto di pubblicazione/domanda di costruzione", "41 appalto",
      "51 progetto esecutivo", "52 Esecuzione", "53 Liquidazione", "60 gestione, esercizio".
 
+5. INCARTO (case_number):
+   - Cerca un numero di 3 o 4 cifre seguito immediatamente (o con uno spazio) da una di queste sigle: "EP", "DC", "N", "SEGN".
+   - Esempi validi: "726 EP", "1329 EP", "123 DC", "5604 N", "949 SEGN".
+   - Estrai ESCLUSIVAMENTE IL NUMERO (es. da "726 EP" estrai "726").
+   - Se non trovi questo pattern specifico, lascia VUOTO (""). NON inventare.
+
 OUTPUT JSON OBBLIGATORIO (Nessun altro testo):
 {
   "date_year": "AAAA",
@@ -54,6 +60,7 @@ OUTPUT JSON OBBLIGATORIO (Nessun altro testo):
   "subject": "Oggetto Sintetico",
   "doc_type": "Codice Descrizione (o stringa vuota)",
   "project_phase": "Codice Descrizione (o stringa vuota)"
+  "case_number": "Numero (o stringa vuota)"
 }
     `,
 
