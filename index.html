@@ -256,14 +256,30 @@
             };
 
             const saveEdit = (originalFile) => {
+                // 1. Determina la data corretta: usa quella esistente, oppure la data del file, oppure oggi.
+                const validDate = originalFile.dateObject || new Date(originalFile.file.lastModified) || new Date();
+                
+                // 2. Gestione Incarto: Tommaso vuole un Intero. Se l'utente scrive testo, proviamo a convertirlo.
+                // Se è vuoto, rimane stringa vuota.
+                let safeCaseNumber = editForm.caseNumber; 
+                if (safeCaseNumber && !isNaN(parseInt(safeCaseNumber))) {
+                    // Se è un numero (es. "726"), assicuriamoci che sia trattato come tale
+                    safeCaseNumber = parseInt(safeCaseNumber);
+                }
+
                 setFiles(p => p.map(x => x.id === originalFile.id ? {
                     ...x,
                     manualOverride: editForm.filename,
+                    dateObject: validDate, // FIX: Assicura che la data esista sempre per Tommaso
                     data: {
                         ...x.data,
-                        case_number: editForm.caseNumber,
+                        // FIX: Mappa il nome file modificato sul campo 'subject' (Nome Documento) per Tommaso
+                        subject: editForm.filename, 
+                        case_number: safeCaseNumber,
                         doc_type: editForm.docType,
-                        project_phase: editForm.projectPhase
+                        project_phase: editForm.projectPhase,
+                        // Mantieni l'Ente se c'era (dall'AI), altrimenti stringa vuota
+                        entity: (x.data && x.data.entity) ? x.data.entity : "" 
                     }
                 } : x));
                 stopEditing();
@@ -568,8 +584,10 @@
                             }
 
                             // B. NOME DOCUMENTO (Oggetto)
-                            if (f.data?.subject && DOCUWARE_CONFIG.fields.subject) {
-                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.subject, "Item": f.data.subject, "ItemElementName": "String" });
+                            // FIX: Se manca il subject nei dati, usa il nome file manuale
+                            const subjectToSend = f.data?.subject || f.manualOverride;
+                            if (subjectToSend && DOCUWARE_CONFIG.fields.subject) {
+                                fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.subject, "Item": subjectToSend, "ItemElementName": "String" });
                             }
 
                             // C. ENTE (Opzionale)
@@ -1113,3 +1131,4 @@
 </body>
 
 </html>
+
