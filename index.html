@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rinominatore Posta v1.00 - Comune di Monteceneri</title>
-    
+
     <!-- 1. Stili CSS (Tailwind) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- 2. React & ReactDOM (CDN stabili) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
+
     <!-- 3. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
@@ -21,66 +22,97 @@
         /* Font personalizzato simile a Century Gothic */
         @import url('https://fonts.googleapis.com/css2?family=Didact+Gothic&display=swap');
 
-        body { 
-            font-family: 'Didact Gothic', 'Century Gothic', 'AppleGothic', sans-serif; 
-            background-color: #f8fafc; 
+        body {
+            font-family: 'Didact Gothic', 'Century Gothic', 'AppleGothic', sans-serif;
+            background-color: #f8fafc;
             color: #1e293b;
         }
-        
+
         /* Animazioni */
-        .fade-in { animation: fadeIn 0.4s ease-out; }
-        .slide-up { animation: slideUp 0.4s ease-out; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .slide-up {
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         /* Progress bar animata */
         .progress-bar-striped {
-            background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
             background-size: 1rem 1rem;
             animation: progress-bar-stripes 1s linear infinite;
         }
+
         @keyframes progress-bar-stripes {
-            0% { background-position: 1rem 0; }
-            100% { background-position: 0 0; }
+            0% {
+                background-position: 1rem 0;
+            }
+
+            100% {
+                background-position: 0 0;
+            }
         }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
 
     <!-- Script dell'Applicazione -->
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // --- ICONE INTEGRATE (Aggiornate) ---
         const Icon = ({ name, className, ...props }) => {
             const icons = {
                 Activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
-                Calendar: <g><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></g>,
-                Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>,
-                FileText: <g><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></g>,
-                Check: <polyline points="20 6 9 17 4 12"/>,
-                AlertCircle: <g><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></g>,
-                RefreshCw: <g><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g>,
-                X: <g><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></g>,
-                Edit2: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>,
-                ArrowUpDown: <g><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></g>,
-                Loader2: <path d="M21 12a9 9 0 1 1-6.219-8.56"/>,
-                Sparkles: <g><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></g>,
-                MessageSquare: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
-                Copy: <g><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></g>,
-                AlignLeft: <g><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></g>,
-                Shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
-                FileArchive: <g><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="20" r="2"/><path d="M10 15v2"/><path d="M12.4 13a4 4 0 0 0-4.8 0"/></g>,
-                UploadCloud: <g><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></g>,
-                ExternalLink: <g><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></g>,
-                Lock: <g><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>,
-                Info: <g><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></g>,
-                Mail: <g><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></g>,
-                Settings: <g><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></g>,
-                ArrowRight: <path d="M5 12h14M12 5l7 7-7 7"/>,
-                RotateCcw: <g><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 16"/><path d="M3 5v11h11"/></g>
+                Calendar: <g><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></g>,
+                Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
+                FileText: <g><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><line x1="10" x2="8" y1="9" y2="9" /></g>,
+                Check: <polyline points="20 6 9 17 4 12" />,
+                AlertCircle: <g><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></g>,
+                RefreshCw: <g><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></g>,
+                X: <g><line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" /></g>,
+                Edit2: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />,
+                ArrowUpDown: <g><path d="m21 16-4 4-4-4" /><path d="M17 20V4" /><path d="m3 8 4-4 4 4" /><path d="M7 4v16" /></g>,
+                Loader2: <path d="M21 12a9 9 0 1 1-6.219-8.56" />,
+                Sparkles: <g><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><path d="M5 3v4" /><path d="M9 3v4" /><path d="M3 5h4" /><path d="M3 9h4" /></g>,
+                MessageSquare: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+                Copy: <g><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></g>,
+                AlignLeft: <g><line x1="21" x2="3" y1="6" y2="6" /><line x1="15" x2="3" y1="12" y2="12" /><line x1="17" x2="3" y1="18" y2="18" /></g>,
+                Shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+                FileArchive: <g><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4" /><polyline points="14 2 14 8 20 8" /><circle cx="10" cy="20" r="2" /><path d="M10 15v2" /><path d="M12.4 13a4 4 0 0 0-4.8 0" /></g>,
+                UploadCloud: <g><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="M12 12v9" /><path d="m16 16-4-4-4 4" /></g>,
+                ExternalLink: <g><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" x2="21" y1="14" y2="3" /></g>,
+                Lock: <g><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>,
+                Info: <g><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="16" y2="12" /><line x1="12" x2="12.01" y1="8" y2="8" /></g>,
+                Mail: <g><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></g>,
+                Settings: <g><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></g>,
+                ArrowRight: <path d="M5 12h14M12 5l7 7-7 7" />,
+                RotateCcw: <g><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 16" /><path d="M3 5v11h11" /></g>
             };
 
             if (!icons[name]) return null;
@@ -91,7 +123,7 @@
         };
 
         // --- PROMPTS DI SISTEMA ---
-        
+
         const PROMPTS = window.MONTECENERI_PROMPTS || {
             RENAME: "ERRORE: File prompts.js non trovato.",
             SUMMARY: "ERRORE: File prompts.js non trovato.",
@@ -101,10 +133,10 @@
         // --- CONFIGURAZIONE DOCUWARE ---
         const DOCUWARE_CONFIG = {
             // Link invariati
-            loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/", 
+            loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/",
             baseUrl: "https://tommaso.tectel.ch/docuware/Platform",
             basketId: "b_aaeb8717-6b54-421e-a15e-458e3f783357",
-            
+
             // MAPPATURA CAMPI (Chiave Interna -> Nome Campo su Tommaso)
             fields: {
                 date: "DATA_DOCUMENTO",            // Per la data
@@ -120,23 +152,23 @@
         const LogoMonteceneri = () => (
             <svg viewBox="0 0 320 100" className="h-16 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <g transform="translate(10, 5) scale(0.8)">
-                <defs>
-                    <clipPath id="shieldMask">
-                    <path d="M0,0 H100 V65 C100,95 50,115 50,115 C50,115 0,95 0,65 V0 Z" />
-                    </clipPath>
-                </defs>
+                    <defs>
+                        <clipPath id="shieldMask">
+                            <path d="M0,0 H100 V65 C100,95 50,115 50,115 C50,115 0,95 0,65 V0 Z" />
+                        </clipPath>
+                    </defs>
 
-                <g clipPath="url(#shieldMask)">
-                    <rect x="0" y="0" width="50" height="120" fill="#1e3a8a" />
-                    <rect x="50" y="0" width="50" height="120" fill="#d97706" />
-                    <path d="M0,80 L50,45 V120 H0 Z" fill="#d97706" />
-                    <path d="M100,80 L50,45 V120 H100 Z" fill="#1e3a8a" />
-                    <circle cx="50" cy="45" r="14" fill="#b91c1c" />
-                    <rect x="44" y="62" width="12" height="6" fill="#b91c1c" />
-                    <rect x="44" y="72" width="12" height="6" fill="#b91c1c" />
-                    <rect x="44" y="82" width="12" height="6" fill="#b91c1c" />
-                    <rect x="44" y="92" width="12" height="6" fill="#b91c1c" />
-                </g>
+                    <g clipPath="url(#shieldMask)">
+                        <rect x="0" y="0" width="50" height="120" fill="#1e3a8a" />
+                        <rect x="50" y="0" width="50" height="120" fill="#d97706" />
+                        <path d="M0,80 L50,45 V120 H0 Z" fill="#d97706" />
+                        <path d="M100,80 L50,45 V120 H100 Z" fill="#1e3a8a" />
+                        <circle cx="50" cy="45" r="14" fill="#b91c1c" />
+                        <rect x="44" y="62" width="12" height="6" fill="#b91c1c" />
+                        <rect x="44" y="72" width="12" height="6" fill="#b91c1c" />
+                        <rect x="44" y="82" width="12" height="6" fill="#b91c1c" />
+                        <rect x="44" y="92" width="12" height="6" fill="#b91c1c" />
+                    </g>
                 </g>
                 <text x="110" y="48" fontFamily="Helvetica, Arial, sans-serif" fontSize="26" fill="#1e3a8a" fontWeight="400" letterSpacing="0.5">Comune di</text>
                 <text x="110" y="78" fontFamily="Helvetica, Arial, sans-serif" fontSize="26" fill="#1e3a8a" fontWeight="bold" letterSpacing="0.5">Monteceneri</text>
@@ -151,15 +183,15 @@
                     <span>{progress} / {total}</span>
                 </div>
                 <div className="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                    <div 
-                        className={`h-full ${color} transition-all duration-500 ease-out progress-bar-striped`} 
+                    <div
+                        className={`h-full ${color} transition-all duration-500 ease-out progress-bar-striped`}
                         style={{ width: `${total > 0 ? (progress / total) * 100 : 0}%` }}
                     ></div>
                 </div>
             </div>
         );
 
-const App = () => {
+        const App = () => {
             const fileInputRef = useRef(null);
             const dragCounter = useRef(0);
 
@@ -189,18 +221,18 @@ const App = () => {
             const [dragActive, setDragActive] = useState(false);
             const [loadingFiles, setLoadingFiles] = useState(false);
             const [libsLoaded, setLibsLoaded] = useState({ zip: false, mammoth: false, xlsx: false });
-            
+
             // --- STATI MODIFICA E ANTEPRIMA ---
             const [editingFileId, setEditingFileId] = useState(null);
             const [editForm, setEditForm] = useState({ filename: '', caseNumber: '', docType: '', projectPhase: '' });
             const [previewUrl, setPreviewUrl] = useState(null);
 
             const [activeAnalysisFile, setActiveAnalysisFile] = useState(null);
-            const [analysisType, setAnalysisType] = useState('internal_summary'); 
+            const [analysisType, setAnalysisType] = useState('internal_summary');
             const [analysisResult, setAnalysisResult] = useState(null);
             const [isAnalyzing, setIsAnalyzing] = useState(false);
             const [dwModalOpen, setDwModalOpen] = useState(false);
-            const [dwStatus, setDwStatus] = useState('idle'); 
+            const [dwStatus, setDwStatus] = useState('idle');
             const [dwLog, setDwLog] = useState([]);
             const [libErrors, setLibErrors] = useState([]);
 
@@ -224,19 +256,19 @@ const App = () => {
             };
 
             const saveEdit = (originalFile) => {
-                setFiles(p => p.map(x => x.id === originalFile.id ? { 
-                    ...x, 
+                setFiles(p => p.map(x => x.id === originalFile.id ? {
+                    ...x,
                     manualOverride: editForm.filename,
-                    data: { 
-                        ...x.data, 
-                        case_number: editForm.caseNumber, 
-                        doc_type: editForm.docType, 
-                        project_phase: editForm.projectPhase 
-                    } 
-                } : x)); 
+                    data: {
+                        ...x.data,
+                        case_number: editForm.caseNumber,
+                        doc_type: editForm.docType,
+                        project_phase: editForm.projectPhase
+                    }
+                } : x));
                 stopEditing();
             };
-            
+
             useEffect(() => {
                 const savedConfig = localStorage.getItem('monteceneri_config');
                 if (savedConfig) {
@@ -373,21 +405,21 @@ const App = () => {
                     const csvText = window.XLSX.utils.sheet_to_csv(worksheet);
                     return { type: 'text', content: csvText };
                 }
-                return { type: 'error', content: '' }; 
+                return { type: 'error', content: '' };
             };
 
             // FIX: callGemini ora accetta systemPrompt specifico per evitare inquinamento del testo
             const callGemini = async (fileData, prompt, systemPrompt, jsonMode = false) => {
                 if (!config.apiKey) throw new Error("API Key non configurata nelle impostazioni!");
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${config.apiKey}`;
-                
+
                 let userPart;
                 if (fileData.type === 'binary') {
                     userPart = { inline_data: { mime_type: fileData.mime, data: fileData.content } };
                 } else {
                     userPart = { text: `DOCUMENTO ESTRATTO:\n${fileData.content}` };
                 }
-                
+
                 // Combina il System Prompt specifico con la richiesta utente
                 const finalPrompt = systemPrompt + "\n\n" + prompt;
 
@@ -419,10 +451,10 @@ const App = () => {
                         const prep = await prepareFileForGemini(f.file);
                         const res = await callGemini(prep, "Estrai i metadati.", PROMPTS.RENAME, true);
                         const json = JSON.parse(res.replace(/```json|```/g, '').trim());
-                        
+
                         let docDate = null;
                         if (json.date_year && json.date_year !== "0000") {
-                            docDate = new Date(parseInt(json.date_year), parseInt(json.date_month)-1, parseInt(json.date_day), 12);
+                            docDate = new Date(parseInt(json.date_year), parseInt(json.date_month) - 1, parseInt(json.date_day), 12);
                         } else { docDate = new Date(f.file.lastModified); }
 
                         setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'success', data: json, processed: true, dateObject: docDate } : x));
@@ -438,7 +470,7 @@ const App = () => {
             const handleToolAnalysis = async (type) => {
                 if (!activeAnalysisFile) return;
                 if (!config.apiKey) { alert("API Key mancante!"); setShowConfig(true); return; }
-                
+
                 setAnalysisType(type);
                 setIsAnalyzing(true);
                 setAnalysisResult(null);
@@ -449,7 +481,7 @@ const App = () => {
                 try {
                     const preparedData = await prepareFileForGemini(activeAnalysisFile.file);
                     // MODIFICA QUI: Passiamo il prompt specifico e jsonMode=false
-                    const resultText = await callGemini(preparedData, "Genera il testo richiesto.", promptSystem, false); 
+                    const resultText = await callGemini(preparedData, "Genera il testo richiesto.", promptSystem, false);
                     setAnalysisResult(resultText);
                 } catch (e) {
                     setAnalysisResult("Errore durante l'analisi: " + e.message);
@@ -458,10 +490,10 @@ const App = () => {
                 }
             };
 
-// --- FUNZIONE DOWNLOAD ZIP ---
+            // --- FUNZIONE DOWNLOAD ZIP ---
             const downloadAllZip = async () => {
                 if (!window.JSZip) { alert("Libreria ZIP non ancora caricata. Riprova tra poco."); return; }
-                
+
                 const validFiles = files.filter(f => f.status === 'success' || f.manualOverride);
                 if (validFiles.length === 0) { alert("Nessun file elaborato da scaricare."); return; }
 
@@ -481,7 +513,7 @@ const App = () => {
                     const url = window.URL.createObjectURL(content);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `Posta_Monteceneri_${new Date().toISOString().slice(0,10)}.zip`;
+                    a.download = `Posta_Monteceneri_${new Date().toISOString().slice(0, 10)}.zip`;
                     document.body.appendChild(a);
                     a.click();
                     window.URL.revokeObjectURL(url);
@@ -499,7 +531,7 @@ const App = () => {
 
                 setDwStatus('logging_in'); setDwLog([]);
                 const log = (m) => setDwLog(p => [...p, m]);
-                
+
                 log("Login su Tommaso...");
                 try {
                     // 1. LOGIN
@@ -522,11 +554,11 @@ const App = () => {
                         const finalName = f.manualOverride || formFinalFilename(f.data);
                         const filename = `${finalName}.${ext}`;
                         log(`>> ${filename}`);
-                        
+
                         try {
                             // 2. PREPARAZIONE METADATI (Prima dell'invio)
                             const fieldsToUpdate = [];
-                            
+
                             // A. DATA DOCUMENTO
                             if (f.dateObject && DOCUWARE_CONFIG.fields.date) {
                                 const year = f.dateObject.getFullYear();
@@ -557,29 +589,29 @@ const App = () => {
 
                             // F. INCARTO (INCARTO) - NUOVO
                             if (f.data?.case_number && DOCUWARE_CONFIG.fields.caseNumber) {
-                                fieldsToUpdate.push({ 
-                                    "FieldName": DOCUWARE_CONFIG.fields.caseNumber, 
-                                    "Item": f.data.case_number, 
+                                fieldsToUpdate.push({
+                                    "FieldName": DOCUWARE_CONFIG.fields.caseNumber,
+                                    "Item": f.data.case_number,
                                     "ItemElementName": "Int" // O "Int" se il campo su DocuWare è numerico puro
                                 });
                             }
 
                             // 3. COSTRUZIONE RICHIESTA MULTIPART (File + Dati Insieme)
                             const fd = new FormData();
-                            
+
                             // Parte 1: I Metadati (devono chiamarsi 'document' o essere il primo json)
                             const documentMetadata = { "Fields": fieldsToUpdate };
                             fd.append('document', new Blob([JSON.stringify(documentMetadata)], { type: 'application/json' }));
-                            
+
                             // Parte 2: Il File
                             fd.append('file', f.file, filename);
 
                             // 4. INVIO UNICO
                             const upRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents`, {
-                                method: 'POST', 
-                                body: fd, 
+                                method: 'POST',
+                                body: fd,
                                 credentials: 'include',
-                                headers: { 'Accept': 'application/json' } 
+                                headers: { 'Accept': 'application/json' }
                                 // NOTA: Non settare Content-Type con FormData, il browser lo fa da solo col boundary corretto
                             });
 
@@ -587,19 +619,19 @@ const App = () => {
                                 // Se fallisce qui, proviamo a leggere l'errore ma consideriamo che potrebbe essere un falso positivo CORS
                                 throw new Error(`Status ${upRes.status}`);
                             }
-                            
+
                             log("   ✅ Caricato e Indicizzato");
 
-                        } catch (e) { 
+                        } catch (e) {
                             // Se l'errore è "Failed to fetch", è probabile che il file sia comunque arrivato su server
                             // grazie all'invio Multipart, i dati sono partiti INSIEME al file.
                             if (e.message.includes("Failed to fetch")) {
                                 log("   ⚠️ Possibile successo (No risposta server)");
                             } else {
-                                log(`❌ Errore: ${e.message}`); 
+                                log(`❌ Errore: ${e.message}`);
                             }
                         }
-                        
+
                         await new Promise(r => setTimeout(r, 300));
                     }
                     log("--- FINE ---"); setDwStatus('done');
@@ -615,7 +647,7 @@ const App = () => {
                 e.preventDefault();
                 e.stopPropagation();
                 dragCounter.current += 1;
-                
+
                 // Attiviamo la grafica se stiamo trascinando qualcosa
                 if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
                     setDragActive(true);
@@ -646,7 +678,7 @@ const App = () => {
             const handleDrop = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 // Reset stato visivo
                 setDragActive(false);
                 dragCounter.current = 0;
@@ -655,17 +687,17 @@ const App = () => {
                 const droppedFiles = e.dataTransfer.files;
                 if (droppedFiles && droppedFiles.length > 0) {
                     setLoadingFiles(true);
-                    
+
                     // Usiamo un piccolo timeout per dare feedback visivo all'utente
                     setTimeout(() => {
                         const newFiles = Array.from(droppedFiles).map(file => ({
                             id: Math.random().toString(36).substr(2, 9),
-                            file, 
-                            originalName: file.name, 
-                            status: 'pending', 
+                            file,
+                            originalName: file.name,
+                            status: 'pending',
                             data: null
                         }));
-                        
+
                         setFiles(prev => [...prev, ...newFiles]);
                         setLoadingFiles(false);
                     }, 200);
@@ -675,7 +707,7 @@ const App = () => {
             // --- UI COMPONENTS ---
             return (
                 <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 relative">
-                    
+
                     {/* HEADER */}
                     <header className="bg-white border-b-4 border-blue-900 shadow-md sticky top-0 z-20">
                         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
@@ -701,29 +733,29 @@ const App = () => {
                     {/* MAIN */}
                     <main className="max-w-7xl mx-auto p-6">
                         {!hasStarted && (
-                            <div 
+                            <div
                                 onClick={() => fileInputRef.current.click()}
                                 // Eventi Drag & Drop collegati alle nuove funzioni
-                                onDragEnter={handleDragEnter} 
-                                onDragLeave={handleDragLeave} 
+                                onDragEnter={handleDragEnter}
+                                onDragLeave={handleDragLeave}
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}
                                 className={`
                                     group relative rounded-3xl p-12 text-center cursor-pointer overflow-hidden border-4 
                                     transition-colors duration-200 ease-in-out
-                                    ${dragActive 
-                                        ? 'bg-blue-50 border-blue-500 shadow-xl border-solid' 
+                                    ${dragActive
+                                        ? 'bg-blue-50 border-blue-500 shadow-xl border-solid'
                                         : 'bg-white border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg'
                                     }
                                 `}
                             >
-                                <input 
-                                    type="file" 
-                                    multiple 
+                                <input
+                                    type="file"
+                                    multiple
                                     ref={fileInputRef}
                                     style={{ display: 'none' }}
                                     onChange={(e) => {
-                                        if(e.target.files && e.target.files.length > 0) {
+                                        if (e.target.files && e.target.files.length > 0) {
                                             setLoadingFiles(true);
                                             setTimeout(() => {
                                                 const newFiles = Array.from(e.target.files).map(file => ({
@@ -734,9 +766,9 @@ const App = () => {
                                                 setLoadingFiles(false);
                                             }, 300);
                                         }
-                                    }} 
+                                    }}
                                 />
-                                
+
                                 {/* pointer-events-none è CRUCIALE qui: impedisce agli elementi figli di "rubare" il drag */}
                                 <div className="relative z-10 flex flex-col items-center gap-5 pointer-events-none">
                                     <div className={`p-5 rounded-full transition-all duration-300 ${loadingFiles ? 'bg-blue-100 text-blue-600 scale-110' : 'bg-slate-100 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50'}`}>
@@ -760,18 +792,18 @@ const App = () => {
                                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Icon name="FileText" className="w-5 h-5 text-blue-600" /> Documenti in lavorazione</h3>
                                         <p className="text-slate-400 text-sm">{files.length} file caricati in lista</p>
                                     </div>
-                                    
+
                                     <div className="flex gap-3">
                                         <button onClick={processFiles} disabled={isProcessing} className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105 disabled:opacity-70 disabled:scale-100 disabled:cursor-not-allowed">
-                                            {isProcessing ? <Icon name="Loader2" className="w-5 h-5 animate-spin"/> : <Icon name="RefreshCw" className="w-5 h-5"/>} 
+                                            {isProcessing ? <Icon name="Loader2" className="w-5 h-5 animate-spin" /> : <Icon name="RefreshCw" className="w-5 h-5" />}
                                             {isProcessing ? "Analisi..." : "Avvia Elaborazione"}
                                         </button>
                                         <button onClick={() => downloadAllZip(true)} className="bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-sm transition-all">
-                                            {libsLoaded.zip ? <Icon name="FileArchive" className="w-5 h-5 text-slate-500"/> : <Icon name="Loader2" className="animate-spin w-5 h-5"/>} 
+                                            {libsLoaded.zip ? <Icon name="FileArchive" className="w-5 h-5 text-slate-500" /> : <Icon name="Loader2" className="animate-spin w-5 h-5" />}
                                             Scarica ZIP
                                         </button>
                                         <button onClick={() => setDwModalOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all transform hover:scale-105">
-                                            <Icon name="UploadCloud" className="w-5 h-5"/> Tommaso
+                                            <Icon name="UploadCloud" className="w-5 h-5" /> Tommaso
                                         </button>
                                     </div>
                                 </div>
@@ -785,126 +817,131 @@ const App = () => {
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-4">
                                     {/* HEADER */}
                                     <div className="grid grid-cols-12 bg-slate-50 p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 tracking-wider">
-                                        <div className="col-span-4 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('originalName')}>Originale <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
-                                        <div className="col-span-6 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={()=>requestSort('generatedName')}>Dati Elaborati e Proposta <Icon name="ArrowUpDown" className="w-3 h-3"/></div>
+                                        <div className="col-span-4 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={() => requestSort('originalName')}>Originale <Icon name="ArrowUpDown" className="w-3 h-3" /></div>
+                                        <div className="col-span-6 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={() => requestSort('generatedName')}>Dati Elaborati e Proposta <Icon name="ArrowUpDown" className="w-3 h-3" /></div>
                                         <div className="col-span-2 text-right">Azioni</div>
                                     </div>
-                                    
+
                                     <div className="divide-y divide-slate-100">
                                         {files.map(f => (
-<div key={f.id} className={`p-4 transition-colors ${editingFileId === f.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                
-                {/* 1. VISTA NORMALE (Click-to-Edit Attivo) */}
-                {editingFileId !== f.id && (
-                    <div className="grid grid-cols-12 gap-4 items-start">
-                        {/* Nome Originale */}
-                        <div className="col-span-4">
-                            <div className="text-sm font-medium text-slate-500 break-words mb-2">{f.originalName}</div>
-                            <div>
-                                {f.status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">In attesa</span>}
-                                {f.status === 'processing' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100"><Icon name="Loader2" className="w-3 h-3 mr-1 animate-spin"/> Analisi...</span>}
-                                {f.status === 'success' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="Check" className="w-3 h-3 mr-1"/> Pronto</span>}
-                                {f.status === 'error' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100" title={f.errorMessage}><Icon name="AlertCircle" className="w-3 h-3 mr-1"/> Errore</span>}
-                            </div>
-                        </div>
+                                            <div key={f.id} className={`p-4 transition-colors ${editingFileId === f.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
 
-                        {/* Dati Elaborati (Cliccabili) */}
-                        <div className="col-span-6">
-                            <div onClick={() => startEditing(f)} className="text-base font-bold text-slate-800 break-words leading-snug mb-2 cursor-pointer hover:text-blue-600 transition-colors" title="Clicca per modificare">
-                                {f.manualOverride || formFinalFilename(f.data) || "---"} <Icon name="Edit2" className="inline w-3 h-3 ml-2 text-slate-300"/>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200"><Icon name="Calendar" className="w-3 h-3 mr-1.5 text-slate-400"/>{f.dateObject ? f.dateObject.toLocaleDateString('it-CH') : 'No Data'}</span>
-                                
-                                {/* Badge Incarto */}
-                                <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${f.data?.case_number ? 'bg-purple-50 text-purple-700 border-purple-100 hover:ring-purple-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
-                                    <span className="font-bold mr-1">N.</span> {f.data?.case_number || "Incarto?"}
-                                </span>
+                                                {/* 1. VISTA NORMALE (Click-to-Edit Attivo) */}
+                                                {editingFileId !== f.id && (
+                                                    <div className="grid grid-cols-12 gap-4 items-start">
+                                                        {/* Nome Originale */}
+                                                        <div className="col-span-4">
+                                                            <div className="text-sm font-medium text-slate-500 break-words mb-2">{f.originalName}</div>
+                                                            <div>
+                                                                {f.status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">In attesa</span>}
+                                                                {f.status === 'processing' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100"><Icon name="Loader2" className="w-3 h-3 mr-1 animate-spin" /> Analisi...</span>}
+                                                                {f.status === 'success' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="Check" className="w-3 h-3 mr-1" /> Pronto</span>}
+                                                                {f.status === 'error' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100" title={f.errorMessage}><Icon name="AlertCircle" className="w-3 h-3 mr-1" /> Errore</span>}
+                                                            </div>
+                                                        </div>
 
-                                {/* Badge Tipo */}
-                                <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 max-w-xs truncate ${f.data?.doc_type ? 'bg-orange-50 text-orange-700 border-orange-100 hover:ring-orange-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
-                                    <Icon name="FileText" className={`w-3 h-3 mr-1.5 ${f.data?.doc_type ? 'text-orange-400' : 'text-slate-300'}`}/>{f.data?.doc_type || "Tipo Doc?"}
-                                </span>
+                                                        {/* Dati Elaborati (Cliccabili) */}
+                                                        <div className="col-span-6">
+                                                            <div onClick={() => startEditing(f)} className="text-base font-bold text-slate-800 break-words leading-snug mb-2 cursor-pointer hover:text-blue-600 transition-colors" title="Clicca per modificare">
+                                                                {f.manualOverride || formFinalFilename(f.data) || "---"} <Icon name="Edit2" className="inline w-3 h-3 ml-2 text-slate-300" />
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200"><Icon name="Calendar" className="w-3 h-3 mr-1.5 text-slate-400" />{f.dateObject ? f.dateObject.toLocaleDateString('it-CH') : 'No Data'}</span>
 
-                                {/* Badge Fase */}
-                                <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 max-w-xs truncate ${f.data?.project_phase ? 'bg-blue-50 text-blue-700 border-blue-100 hover:ring-blue-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
-                                    <Icon name="Activity" className={`w-3 h-3 mr-1.5 ${f.data?.project_phase ? 'text-blue-400' : 'text-slate-300'}`}/>{f.data?.project_phase || "Fase?"}
-                                </span>
-                            </div>
-                        </div>
+                                                                {/* Badge Incarto */}
+                                                                <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${f.data?.case_number ? 'bg-purple-50 text-purple-700 border-purple-100 hover:ring-purple-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
+                                                                    <span className="font-bold mr-1">N.</span> {f.data?.case_number || "Incarto?"}
+                                                                </span>
 
-                        {/* Azioni Rapide */}
-                        <div className="col-span-2 flex justify-end gap-2">
-                            {(f.status === 'success' || f.status === 'error') && (
-                                <>
-                                    <button onClick={() => startEditing(f)} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm"><Icon name="Edit2" className="w-4 h-4"/></button>
-                                    <button onClick={() => { setActiveAnalysisFile(f); setAnalysisType('internal_summary'); setAnalysisResult(null); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-yellow-600 hover:border-yellow-300 transition-all shadow-sm"><Icon name="Sparkles" className="w-4 h-4"/></button>
-                                    <button onClick={() => setFiles(prev => prev.filter(x => x.id !== f.id))} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-600 hover:border-red-300 transition-all shadow-sm"><Icon name="X" className="w-4 h-4"/></button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                )}
+                                                                {/* Badge Tipo */}
+                                                                <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 max-w-xs truncate ${f.data?.doc_type ? 'bg-orange-50 text-orange-700 border-orange-100 hover:ring-orange-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
+                                                                    <Icon name="FileText" className={`w-3 h-3 mr-1.5 ${f.data?.doc_type ? 'text-orange-400' : 'text-slate-300'}`} />{f.data?.doc_type || "Tipo Doc?"}
+                                                                </span>
 
-                {/* 2. MODALITÀ MODIFICA (Con Anteprima Laterale) */}
-                {editingFileId === f.id && (
-                    <div className="bg-white p-4 rounded-lg border-2 border-blue-400 shadow-lg mt-2 animate-in fade-in">
-                        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-                            <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2"><Icon name="Edit2" className="w-4 h-4"/> Modifica Metadati e Verifica</h4>
-                            <button onClick={stopEditing} className="text-slate-400 hover:text-slate-600"><Icon name="X" className="w-5 h-5"/></button>
-                        </div>
+                                                                {/* Badge Fase */}
+                                                                <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 max-w-xs truncate ${f.data?.project_phase ? 'bg-blue-50 text-blue-700 border-blue-100 hover:ring-blue-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
+                                                                    <Icon name="Activity" className={`w-3 h-3 mr-1.5 ${f.data?.project_phase ? 'text-blue-400' : 'text-slate-300'}`} />{f.data?.project_phase || "Fase?"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* FORM */}
-                            <div className="space-y-4">
-                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Documento</label><input autoFocus type="text" value={editForm.filename} onChange={e => setEditForm({...editForm, filename: e.target.value})} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700"/></div>
-                                
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">N. Incarto</label><input type="text" value={editForm.caseNumber} onChange={e => setEditForm({...editForm, caseNumber: e.target.value})} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-purple-50/30 text-purple-800 font-bold" placeholder="Es. 726 EP"/></div>
-                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo Documento</label><select value={editForm.docType} onChange={e => setEditForm({...editForm, docType: e.target.value})} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-orange-500 outline-none bg-orange-50/30 text-slate-700"><option value="">-- Seleziona --</option>{DOC_TYPES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
+                                                        {/* Azioni Rapide */}
+                                                        <div className="col-span-2 flex justify-end gap-2">
+                                                            {(f.status === 'success' || f.status === 'error') && (
+                                                                <>
+                                                                    <button onClick={() => startEditing(f)} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm"><Icon name="Edit2" className="w-4 h-4" /></button>
+                                                                    <button onClick={() => { setActiveAnalysisFile(f); setAnalysisType('internal_summary'); setAnalysisResult(null); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-yellow-600 hover:border-yellow-300 transition-all shadow-sm"><Icon name="Sparkles" className="w-4 h-4" /></button>
+                                                                    <button onClick={() => setFiles(prev => prev.filter(x => x.id !== f.id))} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-600 hover:border-red-300 transition-all shadow-sm"><Icon name="X" className="w-4 h-4" /></button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* 2. MODALITÀ MODIFICA (Con Anteprima Laterale) */}
+                                                {editingFileId === f.id && (
+                                                    <div className="bg-white p-4 rounded-lg border-2 border-blue-400 shadow-lg mt-2 animate-in fade-in">
+                                                        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                                                            <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2"><Icon name="Edit2" className="w-4 h-4" /> Modifica Metadati e Verifica</h4>
+                                                            <button onClick={stopEditing} className="text-slate-400 hover:text-slate-600"><Icon name="X" className="w-5 h-5" /></button>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                            {/* FORM */}
+                                                            <div className="space-y-4">
+                                                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Documento</label><input autoFocus type="text" value={editForm.filename} onChange={e => setEditForm({ ...editForm, filename: e.target.value })} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700" /></div>
+
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">N. Incarto</label><input type="text" value={editForm.caseNumber} onChange={e => setEditForm({ ...editForm, caseNumber: e.target.value })} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-purple-50/30 text-purple-800 font-bold" placeholder="Es. 726 EP" /></div>
+                                                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo Documento</label><select value={editForm.docType} onChange={e => setEditForm({ ...editForm, docType: e.target.value })} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-orange-500 outline-none bg-orange-50/30 text-slate-700"><option value="">-- Seleziona --</option>{DOC_TYPES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
+                                                                </div>
+
+                                                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fase Progetto</label><select value={editForm.projectPhase} onChange={e => setEditForm({ ...editForm, projectPhase: e.target.value })} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30 text-slate-700"><option value="">-- Seleziona --</option>{PROJECT_PHASES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
+
+                                                                <div className="pt-4 flex justify-end gap-3">
+                                                                    <button onClick={stopEditing} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
+                                                                    <button onClick={() => saveEdit(f)} className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md flex items-center gap-2"><Icon name="Check" className="w-4 h-4" /> Salva</button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* ANTEPRIMA */}
+                                                            <div className="bg-slate-100 rounded-lg border border-slate-200 overflow-hidden flex flex-col h-[400px]">
+                                                                <div className="bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-500 uppercase border-b border-slate-300 flex justify-between"><span>Anteprima</span><span>{f.originalName}</span></div>
+                                                                <div className="flex-1 relative bg-slate-50">
+                                                                    {previewUrl ? <iframe src={previewUrl} className="w-full h-full object-contain" title="Anteprima" /> : <div className="flex items-center justify-center h-full text-slate-400 gap-2"><Icon name="Loader2" className="w-6 h-6 animate-spin" /> Caricamento...</div>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                
-                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fase Progetto</label><select value={editForm.projectPhase} onChange={e => setEditForm({...editForm, projectPhase: e.target.value})} className="w-full border border-slate-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30 text-slate-700"><option value="">-- Seleziona --</option>{PROJECT_PHASES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
-                                
-                                <div className="pt-4 flex justify-end gap-3">
-                                    <button onClick={stopEditing} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
-                                    <button onClick={() => saveEdit(f)} className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md flex items-center gap-2"><Icon name="Check" className="w-4 h-4"/> Salva</button>
-                                </div>
                             </div>
-
-                            {/* ANTEPRIMA */}
-                            <div className="bg-slate-100 rounded-lg border border-slate-200 overflow-hidden flex flex-col h-[400px]">
-                                <div className="bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-500 uppercase border-b border-slate-300 flex justify-between"><span>Anteprima</span><span>{f.originalName}</span></div>
-                                <div className="flex-1 relative bg-slate-50">
-                                    {previewUrl ? <iframe src={previewUrl} className="w-full h-full object-contain" title="Anteprima"/> : <div className="flex items-center justify-center h-full text-slate-400 gap-2"><Icon name="Loader2" className="w-6 h-6 animate-spin"/> Caricamento...</div>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+                        )}
                     </main>
 
                     {/* MODALE SETTINGS (Vault) */}
                     {showConfig && (
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
                             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200">
-                                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Icon name="Settings" className="w-5 h-5 text-slate-500"/> Configurazione</h2>
+                                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Icon name="Settings" className="w-5 h-5 text-slate-500" /> Configurazione</h2>
                                 <p className="text-sm text-slate-500 mb-6">I dati vengono salvati localmente nel browser.</p>
-                                
+
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Google Gemini API Key</label>
-                                        <input type="password" value={config.apiKey} onChange={e => setConfig({...config, apiKey: e.target.value})} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="" />
+                                        <input type="password" value={config.apiKey} onChange={e => setConfig({ ...config, apiKey: e.target.value })} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">User Tommaso</label>
-                                            <input type="text" value={config.dwUser} onChange={e => setConfig({...config, dwUser: e.target.value})} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                                            <input type="text" value={config.dwUser} onChange={e => setConfig({ ...config, dwUser: e.target.value })} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Password</label>
-                                            <input type="password" value={config.dwPass} onChange={e => setConfig({...config, dwPass: e.target.value})} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                                            <input type="password" value={config.dwPass} onChange={e => setConfig({ ...config, dwPass: e.target.value })} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
                                         </div>
                                     </div>
                                 </div>
@@ -922,8 +959,8 @@ const App = () => {
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
                             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
                                 <div className="p-5 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
-                                    <h3 className="font-bold text-orange-900 flex gap-2 items-center"><Icon name="UploadCloud" className="w-5 h-5"/> Caricamento su Tommaso</h3>
-                                    <button onClick={() => { setDwModalOpen(false); setDwStatus('idle'); }} className="text-orange-400 hover:text-orange-600 bg-white/50 hover:bg-white p-1 rounded-full transition-all"><Icon name="X" className="w-5 h-5"/></button>
+                                    <h3 className="font-bold text-orange-900 flex gap-2 items-center"><Icon name="UploadCloud" className="w-5 h-5" /> Caricamento su Tommaso</h3>
+                                    <button onClick={() => { setDwModalOpen(false); setDwStatus('idle'); }} className="text-orange-400 hover:text-orange-600 bg-white/50 hover:bg-white p-1 rounded-full transition-all"><Icon name="X" className="w-5 h-5" /></button>
                                 </div>
                                 <div className="p-6 space-y-6">
                                     {dwStatus === 'idle' && (
@@ -932,7 +969,7 @@ const App = () => {
                                                 <div className="flex gap-3">
                                                     <Icon name="Info" className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
                                                     <div className="leading-relaxed">
-                                                        <strong>Istruzioni per 'Allow CORS':</strong><br/>
+                                                        <strong>Istruzioni per 'Allow CORS':</strong><br />
                                                         <ol className="list-decimal ml-4 mt-1 space-y-1 text-xs">
                                                             <li>Installa l'estensione <a href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank" className="underline font-bold hover:text-blue-900">da qui</a>.</li>
                                                             <li>Clicca l'icona <strong>C</strong> nel browser per attivarla.</li>
@@ -956,8 +993,8 @@ const App = () => {
                                     {(dwStatus === 'logging_in' || dwStatus === 'uploading') && (
                                         <div>
                                             <div className="flex flex-col items-center justify-center gap-4 mb-6">
-                                                 <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center"><Icon name="Loader2" className="w-8 h-8 text-orange-500 animate-spin"/></div>
-                                                 <span className="font-bold text-lg text-slate-700">
+                                                <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center"><Icon name="Loader2" className="w-8 h-8 text-orange-500 animate-spin" /></div>
+                                                <span className="font-bold text-lg text-slate-700">
                                                     {dwStatus === 'logging_in' ? 'Login in corso...' : 'Caricamento documenti...'}
                                                 </span>
                                             </div>
@@ -969,9 +1006,9 @@ const App = () => {
                                     {(dwStatus === 'done' || dwStatus === 'error') && (
                                         <div>
                                             <div className="flex flex-col items-center justify-center gap-4 mb-6">
-                                                {dwStatus === 'done' ? 
-                                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center"><Icon name="Check" className="w-8 h-8 text-green-600"/></div> : 
-                                                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center"><Icon name="AlertCircle" className="w-8 h-8 text-red-600"/></div>
+                                                {dwStatus === 'done' ?
+                                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center"><Icon name="Check" className="w-8 h-8 text-green-600" /></div> :
+                                                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center"><Icon name="AlertCircle" className="w-8 h-8 text-red-600" /></div>
                                                 }
                                                 <span className="font-bold text-lg text-slate-700">{dwStatus === 'done' ? 'Operazione Completata!' : 'Errore Caricamento'}</span>
                                             </div>
@@ -981,7 +1018,7 @@ const App = () => {
                                             <div className="flex gap-3">
                                                 {dwStatus === 'error' && (
                                                     <button onClick={() => setDwStatus('idle')} className="flex-1 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                                                        <Icon name="RefreshCw" className="w-4 h-4"/> Riprova
+                                                        <Icon name="RefreshCw" className="w-4 h-4" /> Riprova
                                                     </button>
                                                 )}
                                                 <button onClick={() => { setDwModalOpen(false); setDwStatus('idle'); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">Chiudi</button>
@@ -996,77 +1033,77 @@ const App = () => {
                     {/* MODALE AI */}
                     {activeAnalysisFile && (
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
-                            <div className="p-6 border-b flex justify-between items-center bg-white">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-blue-50 p-3 rounded-xl text-blue-700 shadow-sm"><Icon name="Sparkles" className="w-6 h-6"/></div>
-                                    <div>
-                                        <h3 className="font-bold text-xl text-slate-800">Analisi Intelligente</h3>
-                                        <p className="text-xs text-slate-500 truncate max-w-md font-medium mt-0.5">{activeAnalysisFile.manualOverride || formFinalFilename(activeAnalysisFile.data)}</p>
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
+                                <div className="p-6 border-b flex justify-between items-center bg-white">
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-blue-50 p-3 rounded-xl text-blue-700 shadow-sm"><Icon name="Sparkles" className="w-6 h-6" /></div>
+                                        <div>
+                                            <h3 className="font-bold text-xl text-slate-800">Analisi Intelligente</h3>
+                                            <p className="text-xs text-slate-500 truncate max-w-md font-medium mt-0.5">{activeAnalysisFile.manualOverride || formFinalFilename(activeAnalysisFile.data)}</p>
+                                        </div>
                                     </div>
+                                    <button onClick={() => setActiveAnalysisFile(null)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-all"><Icon name="X" className="w-6 h-6" /></button>
                                 </div>
-                                <button onClick={() => setActiveAnalysisFile(null)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-all"><Icon name="X" className="w-6 h-6"/></button>
-                            </div>
-                            <div className="flex border-b border-slate-200 bg-slate-50/50">
-                                <button onClick={() => { setAnalysisType('internal_summary'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'internal_summary' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
-                                    <span className="flex items-center justify-center gap-2"><Icon name="AlignLeft" className="w-4 h-4"/> Riassunto Interno</span>
-                                </button>
-                                <button onClick={() => { setAnalysisType('diplomatic_response'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'diplomatic_response' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
-                                    <span className="flex items-center justify-center gap-2"><Icon name="MessageSquare" className="w-4 h-4"/> Risposta Diplomatica</span>
-                                </button>
-                            </div>
-                            <div className="p-8 flex-1 overflow-y-auto min-h-[400px] bg-white">
-                                {!analysisResult && !isAnalyzing && (
-                                    <div className="text-center mt-16 animate-in fade-in">
-                                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                            <Icon name="Sparkles" className="w-10 h-10 text-blue-300" />
-                                        </div>
-                                        <h4 className="text-lg font-bold text-slate-700 mb-2">Pronto a generare</h4>
-                                        <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerà il contenuto del documento<br/>per creare il testo richiesto.</p>
-                                        <button onClick={() => handleToolAnalysis(analysisType)} className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl shadow-blue-900/20 transition-all transform hover:-translate-y-1 font-bold flex items-center gap-3 mx-auto text-base">
-                                            <Icon name="Sparkles" className="w-5 h-5"/> Genera {analysisType === 'internal_summary' ? 'Riassunto' : 'Bozza'}
-                                        </button>
-                                    </div>
-                                )}
-                                {isAnalyzing && (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-6 animate-in fade-in">
-                                        <div className="relative">
-                                            <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
-                                            <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
-                                            <Icon name="Sparkles" className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                        </div>
-                                        <p className="font-medium text-slate-600 animate-pulse">Elaborazione in corso...</p>
-                                    </div>
-                                )}
-                                {analysisResult && (
-                                    <div className="animate-in fade-in slide-in-from-bottom-4 h-full flex flex-col">
-                                        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm font-mono text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner flex-1 overflow-y-auto">{analysisResult}</div>
-                                        <div className="mt-6 flex justify-between items-center gap-3">
-                                            <span className="text-xs text-slate-400 mr-auto">Generato da Gemini AI</span>
-                                            
-                                            {/* PULSANTE OUTLOOK */}
-                                            <button 
-                                                onClick={() => window.location.href = `mailto:?body=${encodeURIComponent(analysisResult)}`}
-                                                className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
-                                            >
-                                                <Icon name="Mail" className="w-4 h-4"/> Invia con Outlook
+                                <div className="flex border-b border-slate-200 bg-slate-50/50">
+                                    <button onClick={() => { setAnalysisType('internal_summary'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'internal_summary' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                                        <span className="flex items-center justify-center gap-2"><Icon name="AlignLeft" className="w-4 h-4" /> Riassunto Interno</span>
+                                    </button>
+                                    <button onClick={() => { setAnalysisType('diplomatic_response'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'diplomatic_response' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                                        <span className="flex items-center justify-center gap-2"><Icon name="MessageSquare" className="w-4 h-4" /> Risposta Diplomatica</span>
+                                    </button>
+                                </div>
+                                <div className="p-8 flex-1 overflow-y-auto min-h-[400px] bg-white">
+                                    {!analysisResult && !isAnalyzing && (
+                                        <div className="text-center mt-16 animate-in fade-in">
+                                            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                                <Icon name="Sparkles" className="w-10 h-10 text-blue-300" />
+                                            </div>
+                                            <h4 className="text-lg font-bold text-slate-700 mb-2">Pronto a generare</h4>
+                                            <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerà il contenuto del documento<br />per creare il testo richiesto.</p>
+                                            <button onClick={() => handleToolAnalysis(analysisType)} className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl shadow-blue-900/20 transition-all transform hover:-translate-y-1 font-bold flex items-center gap-3 mx-auto text-base">
+                                                <Icon name="Sparkles" className="w-5 h-5" /> Genera {analysisType === 'internal_summary' ? 'Riassunto' : 'Bozza'}
                                             </button>
+                                        </div>
+                                    )}
+                                    {isAnalyzing && (
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-6 animate-in fade-in">
+                                            <div className="relative">
+                                                <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
+                                                <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
+                                                <Icon name="Sparkles" className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                            </div>
+                                            <p className="font-medium text-slate-600 animate-pulse">Elaborazione in corso...</p>
+                                        </div>
+                                    )}
+                                    {analysisResult && (
+                                        <div className="animate-in fade-in slide-in-from-bottom-4 h-full flex flex-col">
+                                            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm font-mono text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner flex-1 overflow-y-auto">{analysisResult}</div>
+                                            <div className="mt-6 flex justify-between items-center gap-3">
+                                                <span className="text-xs text-slate-400 mr-auto">Generato da Gemini AI</span>
 
-                                            <button onClick={() => navigator.clipboard.writeText(analysisResult)} className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
-                                                <Icon name="Copy" className="w-4 h-4"/> Copia testo
-                                            </button>
+                                                {/* PULSANTE OUTLOOK */}
+                                                <button
+                                                    onClick={() => window.location.href = `mailto:?body=${encodeURIComponent(analysisResult)}`}
+                                                    className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
+                                                >
+                                                    <Icon name="Mail" className="w-4 h-4" /> Invia con Outlook
+                                                </button>
+
+                                                <button onClick={() => navigator.clipboard.writeText(analysisResult)} className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
+                                                    <Icon name="Copy" className="w-4 h-4" /> Copia testo
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                <footer className="mt-20 py-8 text-center border-t border-slate-200 bg-white">
-                    <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">© 2025 Ing. Luca Cayetano • Comune di Monteceneri</p>
-                </footer>
-            </div>
+                    <footer className="mt-20 py-8 text-center border-t border-slate-200 bg-white">
+                        <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">© 2025 Ing. Luca Cayetano • Comune di Monteceneri</p>
+                    </footer>
+                </div>
             );
         };
 
@@ -1074,4 +1111,5 @@ const App = () => {
         root.render(<App />);
     </script>
 </body>
+
 </html>
