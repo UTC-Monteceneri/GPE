@@ -62,7 +62,7 @@ OUTPUT JSON OBBLIGATORIO (Nessun altro testo):
   "entity": "Ente Identificato",
   "subject": "Oggetto Sintetico",
   "doc_type": "Codice Descrizione (o stringa vuota)",
-  "project_phase": "Codice Descrizione (o stringa vuota)"
+  "project_phase": "Codice Descrizione (o stringa vuota)",
   "case_number": "Numero (o stringa vuota)"
 }
     `,
