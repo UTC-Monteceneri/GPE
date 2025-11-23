@@ -202,6 +202,7 @@ const App = () => {
             const [dwModalOpen, setDwModalOpen] = useState(false);
             const [dwStatus, setDwStatus] = useState('idle'); 
             const [dwLog, setDwLog] = useState([]);
+            const [libErrors, setLibErrors] = useState([]);
 
             // --- FUNZIONI HELPER MODIFICA ---
             const startEditing = (file) => {
@@ -251,41 +252,6 @@ const App = () => {
                 setShowConfig(false);
             };
 
-            // STATI APP
-            const [files, setFiles] = useState([]);
-            const [isProcessing, setIsProcessing] = useState(false);
-            const [hasStarted, setHasStarted] = useState(false);
-            const [progress, setProgress] = useState({ current: 0, total: 0 });
-            const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
-            const [dragActive, setDragActive] = useState(false);
-            const [loadingFiles, setLoadingFiles] = useState(false);
-            
-            // Stati librerie esterne
-            const [libsLoaded, setLibsLoaded] = useState({ zip: false, mammoth: false, xlsx: false });
-            const [libErrors, setLibErrors] = useState([]);
-            
-            // MODALI & ANALISI
-            const [editingFileId, setEditingFileId] = useState(null);
-            // Stato esteso per la modifica completa
-            const [editForm, setEditForm] = useState({ 
-                filename: '', 
-                caseNumber: '', 
-                docType: '', 
-                projectPhase: '' 
-            });
-            const [activeAnalysisFile, setActiveAnalysisFile] = useState(null);
-            const [analysisType, setAnalysisType] = useState('internal_summary'); 
-            const [analysisResult, setAnalysisResult] = useState(null);
-            const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-            // DOCUWARE
-            const [dwModalOpen, setDwModalOpen] = useState(false);
-            const [dwStatus, setDwStatus] = useState('idle'); 
-            const [dwLog, setDwLog] = useState([]);
-
-            // --- NUOVO STATO PER ANTEPRIMA ---
-            const [previewUrl, setPreviewUrl] = useState(null);
-    
             // Reset automatico stato hasStarted quando la lista si svuota
             useEffect(() => {
                 if (files.length === 0) {
@@ -1109,22 +1075,3 @@ const App = () => {
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
