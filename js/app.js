@@ -28,8 +28,6 @@ const App = () => {
     // --- CONFIGURAZIONE DOCUWARE ---
     const DOCUWARE_CONFIG = window.DOCUWARE_CONFIG || {};
 
-
-
     const fileInputRef = useRef(null);
     const dragCounter = useRef(0);
 
@@ -56,12 +54,16 @@ const App = () => {
 
     const [activeAnalysisFile, setActiveAnalysisFile] = useState(null);
     const [analysisType, setAnalysisType] = useState('internal_summary');
-    const [customPromptText, setCustomPromptText] = useState(""); // NUOVO STATO
+    const [customPromptText, setCustomPromptText] = useState("");
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [dwModalOpen, setDwModalOpen] = useState(false);
-    const [dwStatus, setDwStatus] = useState('idle');
+
+    // DOCUWARE STATES
+    const [dwStatus, setDwStatus] = useState('idle'); // idle, logging_in, uploading, success, error
     const [dwLog, setDwLog] = useState([]);
+    const [dwProgress, setDwProgress] = useState({ current: 0, total: 0 }); // NUOVO STATO PROGRESSO
+
     const [libErrors, setLibErrors] = useState([]);
 
     // --- LOGICA FILE ---
@@ -75,7 +77,6 @@ const App = () => {
 
     // --- FUNZIONI HELPER MODIFICA ---
     const startEditing = (file) => {
-        // Converte dateObject in formato YYYY-MM-DD per input type="date"
         const dateObj = file.dateObject || new Date(file.file.lastModified);
         const dateString = dateObj.toISOString().split('T')[0];
         setEditForm({
@@ -85,14 +86,12 @@ const App = () => {
             projectPhase: file.data?.project_phase || '',
             date: dateString
         });
-        // Crea URL temporaneo per anteprima
         if (file.file) setPreviewUrl(URL.createObjectURL(file.file));
         setEditingFileId(file.id);
     };
 
     const stopEditing = () => {
         setEditingFileId(null);
-        // OTTIMIZZAZIONE: Revoca URL per liberare memoria
         if (previewUrl) {
             window.URL.revokeObjectURL(previewUrl);
         }
@@ -100,29 +99,22 @@ const App = () => {
     };
 
     const saveEdit = (originalFile, shouldClose = true) => {
-        // 1. Determina la data corretta: usa quella esistente, oppure la data del file, oppure oggi.
         const validDate = editForm.date ? new Date(editForm.date + 'T12:00:00') : (originalFile.dateObject || new Date(originalFile.file.lastModified) || new Date());
-
-        // 2. Gestione Incarto: Tommaso vuole un Intero. Se l'utente scrive testo, proviamo a convertirlo.
-        // Se è vuoto, rimane stringa vuota.
         let safeCaseNumber = editForm.caseNumber;
         if (safeCaseNumber && !isNaN(parseInt(safeCaseNumber))) {
-            // Se è un numero (es. "726"), assicuriamoci che sia trattato come tale
             safeCaseNumber = parseInt(safeCaseNumber);
         }
 
         setFiles(p => p.map(x => x.id === originalFile.id ? {
             ...x,
             manualOverride: editForm.filename,
-            dateObject: validDate, // FIX: Assicura che la data esista sempre per Tommaso
+            dateObject: validDate,
             data: {
                 ...x.data,
-                // FIX: Mappa il nome file modificato sul campo 'subject' (Nome Documento) per Tommaso
                 subject: editForm.filename,
                 case_number: safeCaseNumber,
                 doc_type: editForm.docType,
                 project_phase: editForm.projectPhase,
-                // Mantieni l'Ente se c'era (dall'AI), altrimenti stringa vuota
                 entity: (x.data && x.data.entity) ? x.data.entity : ""
             }
         } : x));
@@ -132,24 +124,17 @@ const App = () => {
         }
     };
 
-    // NUOVA FUNZIONE: Navigazione tra file (salva e passa al prossimo)
     const navigateFile = (direction) => {
-        // 1. Salva modifiche correnti senza chiudere
         const currentFile = files.find(f => f.id === editingFileId);
         if (currentFile) saveEdit(currentFile, false);
 
-        // 2. Trova indice in sortedFiles (così segue l'ordine visivo)
         const currentIndex = sortedFiles.findIndex(f => f.id === editingFileId);
         if (currentIndex === -1) return;
 
-        // 3. Calcola nuovo indice
         let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-
-        // Gestione limiti (Loop)
         if (newIndex < 0) newIndex = sortedFiles.length - 1;
         if (newIndex >= sortedFiles.length) newIndex = 0;
 
-        // 4. Passa al nuovo file
         startEditing(sortedFiles[newIndex]);
     };
 
@@ -168,7 +153,6 @@ const App = () => {
         setShowConfig(false);
     };
 
-    // Reset automatico stato hasStarted quando la lista si svuota
     useEffect(() => {
         if (files.length === 0) {
             setHasStarted(false);
@@ -176,8 +160,6 @@ const App = () => {
         }
     }, [files.length]);
 
-
-    // Caricamento dinamico librerie
     useEffect(() => {
         const loadScriptWithFallback = async (id, urls) => {
             for (const url of urls) {
@@ -205,28 +187,21 @@ const App = () => {
 
         const loadAll = async () => {
             await Promise.all([
-                // ZIP
                 (async () => {
                     const zipOk = await loadScriptWithFallback("jszip-script", ["https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"]);
                     setLibsLoaded(prev => ({ ...prev, zip: zipOk }));
                     if (!zipOk) setLibErrors(prev => [...prev, "ZIP"]);
                 })(),
-
-                // Mammoth (Word)
                 (async () => {
                     const mammothOk = await loadScriptWithFallback("mammoth-script", ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js", "https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"]);
                     setLibsLoaded(prev => ({ ...prev, mammoth: mammothOk }));
                     if (!mammothOk) setLibErrors(prev => [...prev, "Word"]);
                 })(),
-
-                // XLSX (Excel)
                 (async () => {
                     const xlsxOk = await loadScriptWithFallback("xlsx-script", ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"]);
                     setLibsLoaded(prev => ({ ...prev, xlsx: xlsxOk }));
                     if (!xlsxOk) setLibErrors(prev => [...prev, "Excel"]);
                 })(),
-
-                // MSG Reader (Dipendente da DataStream)
                 (async () => {
                     const datastreamOk = await loadScriptWithFallback("datastream-script", ["https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/DataStream.js"]);
                     const msgreaderOk = await loadScriptWithFallback("msgreader-script", ["https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/msg.reader.js"]);
@@ -235,11 +210,9 @@ const App = () => {
                 })()
             ]);
         };
-
         loadAll();
     }, []);
 
-    // --- DRAG & DROP HANDLERS ---
     const handleDragEnter = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -287,7 +260,6 @@ const App = () => {
 
     const criticalLibsReady = libsLoaded.zip;
 
-    // --- LOGICA FILE ---
     const readFileSafe = async (file, method) => {
         if (method === 'arrayBuffer') return await file.arrayBuffer();
         return new Promise((resolve) => {
@@ -305,14 +277,12 @@ const App = () => {
             if ((encoded.length % 4) > 0) encoded += '='.repeat(4 - (encoded.length % 4));
             return { type: 'binary', mime: file.type, content: encoded };
         }
-        // Gestione Word
         if (['docx'].includes(ext)) {
             if (!libsLoaded.mammoth || !window.mammoth) return { type: 'error', content: '' };
             const arrayBuffer = await readFileSafe(file, 'arrayBuffer');
             const result = await window.mammoth.extractRawText({ arrayBuffer });
             return { type: 'text', content: result.value };
         }
-        // Gestione Excel
         if (['xlsx', 'xls', 'csv'].includes(ext)) {
             if (!libsLoaded.xlsx || !window.XLSX) return { type: 'error', content: '' };
             const arrayBuffer = await readFileSafe(file, 'arrayBuffer');
@@ -322,40 +292,30 @@ const App = () => {
             const csvText = window.XLSX.utils.sheet_to_csv(worksheet);
             return { type: 'text', content: csvText };
         }
-        // Gestione MSG (email Outlook)
         if (['msg'].includes(ext)) {
             if (!libsLoaded.msgreader || !window.MSGReader) return { type: 'error', content: '' };
             const arrayBuffer = await readFileSafe(file, 'arrayBuffer');
             const msgReader = new window.MSGReader(arrayBuffer);
             const fileData = msgReader.getFileData();
-
-            // Estrai solo contenuto email (NO allegati)
             let emailContent = '';
             if (fileData.subject) emailContent += `Oggetto: ${fileData.subject}\n\n`;
             if (fileData.senderName) emailContent += `Da: ${fileData.senderName}\n`;
             if (fileData.body) emailContent += `\n${fileData.body}`;
-
             return { type: 'text', content: emailContent };
         }
-
         return { type: 'error', content: '' };
     };
 
-    // FIX: callGemini ora accetta systemPrompt specifico per evitare inquinamento del testo
     const callGemini = async (fileData, prompt, systemPrompt, jsonMode = false) => {
         if (!config.apiKey) throw new Error("API Key non configurata nelle impostazioni!");
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${config.apiKey}`;
-
         let userPart;
         if (fileData.type === 'binary') {
             userPart = { inline_data: { mime_type: fileData.mime, data: fileData.content } };
         } else {
             userPart = { text: `DOCUMENTO ESTRATTO:\n${fileData.content}` };
         }
-
-        // Combina il System Prompt specifico con la richiesta utente
         const finalPrompt = systemPrompt + "\n\n" + prompt;
-
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -369,7 +329,6 @@ const App = () => {
         return data.candidates[0].content.parts[0].text;
     };
 
-    // --- PROCESSO DI ANALISI ---
     const processFiles = async () => {
         if (!config.apiKey) { setShowConfig(true); return; }
         const todo = files.filter(f => f.status === 'pending' || f.status === 'error');
@@ -387,12 +346,10 @@ const App = () => {
                     const prep = await prepareFileForGemini(f.file);
                     const res = await callGemini(prep, "Estrai i metadati.", PROMPTS.RENAME, true);
                     const json = JSON.parse(res.replace(/```json|```/g, '').trim());
-
                     let docDate = null;
                     if (json.date_year && json.date_year !== "0000") {
                         docDate = new Date(parseInt(json.date_year), parseInt(json.date_month) - 1, parseInt(json.date_day), 12);
                     } else { docDate = new Date(f.file.lastModified); }
-
                     setFiles(p => p.map(x => x.id === f.id ? {
                         ...x,
                         status: 'success',
@@ -412,16 +369,12 @@ const App = () => {
         setIsProcessing(false);
     };
 
-    // --- AI TOOLS: FUNZIONE DEDICATA PER GLI STRUMENTI ---
     const handleToolAnalysis = async (type) => {
         if (!activeAnalysisFile) return;
         if (!config.apiKey) { alert("API Key mancante!"); setShowConfig(true); return; }
-
         setAnalysisType(type);
         setIsAnalyzing(true);
         setAnalysisResult(null);
-
-        // Seleziona il prompt corretto in base al tasto premuto
         let promptSystem;
         if (type === 'diplomatic_response') promptSystem = PROMPTS.DIPLOMATIC;
         else if (type === 'custom') {
@@ -429,17 +382,13 @@ const App = () => {
             promptSystem = customPromptText;
         }
         else promptSystem = PROMPTS.SUMMARY;
-
         try {
             let preparedData;
-            // OTTIMIZZAZIONE: Usa il contenuto già estratto se disponibile (evita rilettura)
             if (activeAnalysisFile.content) {
                 preparedData = { type: 'text', content: activeAnalysisFile.content };
             } else {
                 preparedData = await prepareFileForGemini(activeAnalysisFile.file);
             }
-
-            // MODIFICA QUI: Passiamo il prompt specifico e jsonMode=false
             const resultText = await callGemini(preparedData, "Genera il testo richiesto.", promptSystem, false);
             setAnalysisResult(resultText);
         } catch (e) {
@@ -448,27 +397,19 @@ const App = () => {
             setIsAnalyzing(false);
         }
     };
-
-    // --- FUNZIONE DOWNLOAD ZIP ---
     const downloadAllZip = async () => {
         if (!window.JSZip) { alert("Libreria ZIP non ancora caricata. Riprova tra poco."); return; }
-
         const validFiles = files.filter(f => f.status === 'success' || f.manualOverride);
         if (validFiles.length === 0) { alert("Nessun file elaborato da scaricare."); return; }
-
         const zip = new window.JSZip();
         const folder = zip.folder("Rinominati_Monteceneri");
-
         validFiles.forEach(f => {
             const ext = f.originalName.split('.').pop();
             const name = f.manualOverride || formFinalFilename(f.data);
-            // Aggiunge il file allo zip con il nuovo nome
             folder.file(`${name}.${ext}`, f.file);
         });
-
         try {
             const content = await zip.generateAsync({ type: "blob" });
-            // Crea un link temporaneo per il download
             const url = window.URL.createObjectURL(content);
             const a = document.createElement("a");
             a.href = url;
@@ -482,18 +423,17 @@ const App = () => {
         }
     };
 
-    // --- DOCUWARE UPLOAD ---
     const handleDocuWareUpload = async () => {
         if (!config.dwUser || !config.dwPass) { alert("Configura Username e Password nelle impostazioni!"); setShowConfig(true); return; }
         const todo = files.filter(f => f.status === 'success' || f.manualOverride);
         if (todo.length === 0) return;
 
         setDwStatus('logging_in'); setDwLog([]);
+        setDwProgress({ current: 0, total: todo.length }); // RESET PROGRESSO
         const log = (m) => setDwLog(p => [...p, m]);
 
         log("Login su Tommaso...");
         try {
-            // 1. LOGIN
             const loginForm = new URLSearchParams();
             loginForm.append('UserName', config.dwUser);
             loginForm.append('Password', config.dwPass);
@@ -505,9 +445,10 @@ const App = () => {
             });
 
             if (!loginRes.ok) throw new Error(`Login Error: ${loginRes.status}`);
-            log("✅ Login OK. Inizio caricamento...");
+            log("âœ… Login OK. Inizio caricamento...");
             setDwStatus('uploading');
 
+            let uploadCount = 0;
             for (const f of todo) {
                 const ext = f.originalName.split('.').pop();
                 const finalName = f.manualOverride || formFinalFilename(f.data);
@@ -515,121 +456,90 @@ const App = () => {
                 log(`>> ${filename}`);
 
                 try {
-                    // 2. PREPARAZIONE METADATI (Prima dell'invio)
                     const fieldsToUpdate = [];
-
-                    // A. DATA DOCUMENTO
                     if (f.dateObject && DOCUWARE_CONFIG.fields.date) {
                         const year = f.dateObject.getFullYear();
                         const month = String(f.dateObject.getMonth() + 1).padStart(2, '0');
                         const day = String(f.dateObject.getDate()).padStart(2, '0');
                         fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.date, "Item": `${year}-${month}-${day}`, "ItemElementName": "Date" });
                     }
-
-                    // B. NOME DOCUMENTO (Oggetto)
-                    // FIX: Se manca il subject nei dati, usa il nome file manuale
                     const subjectToSend = f.data?.subject || f.manualOverride;
                     if (subjectToSend && DOCUWARE_CONFIG.fields.subject) {
                         fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.subject, "Item": subjectToSend, "ItemElementName": "String" });
                     }
-
-                    // C. ENTE (Opzionale)
                     if (f.data?.entity && DOCUWARE_CONFIG.fields.entity) {
                         fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.entity, "Item": f.data.entity, "ItemElementName": "String" });
                     }
-
-                    // D. TIPO DOCUMENTO
                     if (f.data?.doc_type && DOCUWARE_CONFIG.fields.docType) {
                         fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.docType, "Item": f.data.doc_type, "ItemElementName": "String" });
                     }
-
-                    // E. FASE DEL PROGETTO
                     if (f.data?.project_phase && DOCUWARE_CONFIG.fields.projectPhase) {
                         fieldsToUpdate.push({ "FieldName": DOCUWARE_CONFIG.fields.projectPhase, "Item": f.data.project_phase, "ItemElementName": "String" });
                     }
-
-                    // F. INCARTO (INCARTO) - NUOVO
                     if (f.data?.case_number && DOCUWARE_CONFIG.fields.caseNumber) {
                         fieldsToUpdate.push({
                             "FieldName": DOCUWARE_CONFIG.fields.caseNumber,
                             "Item": f.data.case_number,
-                            "ItemElementName": "Int" // O "Int" se il campo su DocuWare è numerico puro
+                            "ItemElementName": "Int"
                         });
                     }
 
-                    // 3. COSTRUZIONE RICHIESTA MULTIPART (File + Dati Insieme)
                     const fd = new FormData();
-
-                    // Parte 1: I Metadati (devono chiamarsi 'document' o essere il primo json)
                     const documentMetadata = { "Fields": fieldsToUpdate };
                     fd.append('document', new Blob([JSON.stringify(documentMetadata)], { type: 'application/json' }));
-
-                    // Parte 2: Il File
                     fd.append('file', f.file, filename);
 
-                    // 4. INVIO UNICO
                     const upRes = await fetch(`${DOCUWARE_CONFIG.baseUrl}/FileCabinets/${DOCUWARE_CONFIG.basketId}/Documents`, {
                         method: 'POST',
                         body: fd,
                         credentials: 'include',
                         headers: { 'Accept': 'application/json' }
-                        // NOTA: Non settare Content-Type con FormData, il browser lo fa da solo col boundary corretto
                     });
 
                     if (!upRes.ok) {
-                        // Se fallisce qui, proviamo a leggere l'errore ma consideriamo che potrebbe essere un falso positivo CORS
                         throw new Error(`Status ${upRes.status}`);
                     }
-
-                    log("   ✅ Caricato e Indicizzato");
-
+                    log("   âœ… Caricato e Indicizzato");
                 } catch (e) {
-                    // Se l'errore è "Failed to fetch", è probabile che il file sia comunque arrivato su server
-                    // grazie all'invio Multipart, i dati sono partiti INSIEME al file.
                     if (e.message.includes("Failed to fetch")) {
-                        log("   ⚠️ Possibile successo (No risposta server)");
+                        log("   âš ï¸ Possibile successo (No risposta server)");
                     } else {
-                        log(`❌ Errore: ${e.message}`);
+                        log(`âŒ Errore: ${e.message}`);
                     }
+                } finally {
+                    uploadCount++;
+                    setDwProgress({ current: uploadCount, total: todo.length });
                 }
-
-                await new Promise(r => setTimeout(r, 300));
             }
             log("--- FINE ---"); setDwStatus('done');
             setTimeout(() => setFiles([]), 3000);
         } catch (e) {
-            log(`❌ ERRORE SISTEMA: ${e.message}`);
+            log(`âŒ ERRORE SISTEMA: ${e.message}`);
             setDwStatus('error');
         }
     };
 
-    // --- ORDINAMENTO E LOGICA FILE ---
     const requestSort = (key) => {
         let direction = 'ascending';
         if (sortConfig.key === key && sortConfig.direction === 'ascending') direction = 'descending';
         setSortConfig({ key, direction });
     };
 
-    // OTTIMIZZAZIONE: useMemo per ordinamento istantaneo senza re-render doppi
     const sortedFiles = React.useMemo(() => {
         if (!sortConfig.key) return files;
-
         return [...files].sort((a, b) => {
             let aVal = sortConfig.key === 'docDate' ? (a.dateObject ? a.dateObject.getTime() : 0) : a[sortConfig.key];
             let bVal = sortConfig.key === 'docDate' ? (b.dateObject ? b.dateObject.getTime() : 0) : b[sortConfig.key];
-
             if (sortConfig.key === 'generatedName') {
                 aVal = a.processed ? formFinalFilename(a.data) : 'zzz';
                 bVal = b.processed ? formFinalFilename(b.data) : 'zzz';
             }
-
             if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
             if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
     }, [files, sortConfig]);
 
-    // --- UI COMPONENTS ---
     if (!componentsReady) return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 font-sans">
             <div className="w-12 h-12 border-4 border-slate-200 border-b-blue-900 rounded-full animate-spin mb-5"></div>
@@ -639,8 +549,6 @@ const App = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 relative">
-
-            {/* HEADER */}
             <header className="bg-white border-b-4 border-blue-900 shadow-md sticky top-0 z-20">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-6">
@@ -662,12 +570,10 @@ const App = () => {
                 </div>
             </header >
 
-            {/* MAIN */}
             < main className="max-w-7xl mx-auto p-6" >
                 {!hasStarted && (
                     <div
                         onClick={() => fileInputRef.current.click()}
-                        // Eventi Drag & Drop collegati alle nuove funzioni
                         onDragEnter={handleDragEnter}
                         onDragLeave={handleDragLeave}
                         onDragOver={handleDragOver}
@@ -675,10 +581,7 @@ const App = () => {
                         className={`
                         group relative rounded-3xl p-12 text-center cursor-pointer overflow-hidden border-4 
                         transition-colors duration-200 ease-in-out
-                        ${dragActive
-                                ? 'bg-blue-50 border-blue-500 shadow-xl border-solid'
-                                : 'bg-white border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg'
-                            }
+                        ${dragActive ? 'bg-blue-50 border-blue-500 shadow-xl border-solid' : 'bg-white border-dashed border-slate-300 hover:border-blue-400 hover:shadow-lg'}
                     `}
                     >
                         <input
@@ -700,8 +603,6 @@ const App = () => {
                                 }
                             }}
                         />
-
-                        {/* pointer-events-none è CRUCIALE qui: impedisce agli elementi figli di "rubare" il drag */}
                         <div className="relative z-10 flex flex-col items-center gap-5 pointer-events-none">
                             <div className={`p-5 rounded-full transition-all duration-300 ${loadingFiles ? 'bg-blue-100 text-blue-600 scale-110' : 'bg-slate-100 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50'}`}>
                                 <Icon name={loadingFiles ? "Loader2" : "Upload"} className={`w-10 h-10 ${loadingFiles ? 'animate-spin' : ''}`} />
@@ -711,7 +612,7 @@ const App = () => {
                                     {dragActive ? "Rilascia i file qui!" : (loadingFiles ? "Lettura in corso..." : "Trascina qui i documenti")}
                                 </h3>
                                 <p className="text-slate-400 text-sm">
-                                    {dragActive ? "Li prenderò al volo" : "o clicca per selezionare dal computer"}
+                                    {dragActive ? "Li prenderÃ² al volo" : "o clicca per selezionare dal computer"}
                                 </p>
                             </div>
                         </div>
@@ -725,7 +626,6 @@ const App = () => {
                                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Icon name="FileText" className="w-5 h-5 text-blue-600" /> Documenti in lavorazione</h3>
                                     <p className="text-slate-400 text-sm">{files.length} file caricati in lista</p>
                                 </div>
-
                                 <div className="flex gap-3">
                                     <button onClick={processFiles} disabled={isProcessing} className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105 disabled:opacity-70 disabled:scale-100 disabled:cursor-not-allowed">
                                         {isProcessing ? <Icon name="Loader2" className="w-5 h-5 animate-spin" /> : <Icon name="RefreshCw" className="w-5 h-5" />}
@@ -740,29 +640,22 @@ const App = () => {
                                     </button>
                                 </div>
                             </div>
-
                             {isProcessing && (
                                 <div className="mb-6">
                                     <ProgressBar progress={progress.current} total={progress.total} label={`Avanzamento Elaborazione: ${progress.current} di ${progress.total} completati`} color="bg-blue-600" />
                                 </div>
                             )}
-
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-4">
-                                {/* HEADER */}
                                 <div className="grid grid-cols-12 bg-slate-50 p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 tracking-wider">
                                     <div className="col-span-4 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={() => requestSort('originalName')}>Originale <Icon name="ArrowUpDown" className="w-3 h-3" /></div>
                                     <div className="col-span-6 cursor-pointer hover:text-blue-700 flex items-center gap-1" onClick={() => requestSort('generatedName')}>Dati Elaborati e Proposta <Icon name="ArrowUpDown" className="w-3 h-3" /></div>
                                     <div className="col-span-2 text-right">Azioni</div>
                                 </div>
-
                                 <div className="divide-y divide-slate-100">
                                     {sortedFiles.map(f => (
                                         <div key={f.id} className={`p-4 transition-colors ${editingFileId === f.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-
-                                            {/* 1. VISTA NORMALE (Click-to-Edit Attivo) */}
                                             {editingFileId !== f.id && (
                                                 <div className="grid grid-cols-12 gap-4 items-start">
-                                                    {/* Nome Originale */}
                                                     <div className="col-span-4">
                                                         <div className="text-sm font-medium text-slate-500 break-words mb-2">{f.originalName}</div>
                                                         <div>
@@ -772,33 +665,23 @@ const App = () => {
                                                             {f.status === 'error' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100" title={f.errorMessage}><Icon name="AlertCircle" className="w-3 h-3 mr-1" /> Errore</span>}
                                                         </div>
                                                     </div>
-
-                                                    {/* Dati Elaborati (Cliccabili) */}
                                                     <div className="col-span-6">
                                                         <div onClick={() => startEditing(f)} className="text-base font-bold text-slate-800 break-words leading-snug mb-2 cursor-pointer hover:text-blue-600 transition-colors" title="Clicca per modificare">
                                                             {f.manualOverride || formFinalFilename(f.data) || "---"} <Icon name="Edit2" className="inline w-3 h-3 ml-2 text-slate-300" />
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
                                                             <span onClick={() => startEditing(f)} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-slate-300 transition-all"><Icon name="Calendar" className="w-3 h-3 mr-1.5 text-slate-400" />{f.dateObject ? f.dateObject.toLocaleDateString('it-CH') : 'No Data'}</span>
-
-                                                            {/* Badge Incarto */}
                                                             <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${f.data?.case_number ? 'bg-purple-50 text-purple-700 border-purple-100 hover:ring-purple-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
                                                                 <span className="font-bold mr-1">N.</span> {f.data?.case_number || "Incarto?"}
                                                             </span>
-
-                                                            {/* Badge Tipo */}
                                                             <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 max-w-xs truncate ${f.data?.doc_type ? 'bg-orange-50 text-orange-700 border-orange-100 hover:ring-orange-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
                                                                 <Icon name="FileText" className={`w-3 h-3 mr-1.5 ${f.data?.doc_type ? 'text-orange-400' : 'text-slate-300'}`} />{f.data?.doc_type || "Tipo Doc?"}
                                                             </span>
-
-                                                            {/* Badge Fase */}
                                                             <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 max-w-xs truncate ${f.data?.project_phase ? 'bg-blue-50 text-blue-700 border-blue-100 hover:ring-blue-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
                                                                 <Icon name="Activity" className={`w-3 h-3 mr-1.5 ${f.data?.project_phase ? 'text-blue-400' : 'text-slate-300'}`} />{f.data?.project_phase || "Fase?"}
                                                             </span>
                                                         </div>
                                                     </div>
-
-                                                    {/* Azioni Rapide */}
                                                     <div className="col-span-2 flex justify-end gap-2">
                                                         {(f.status === 'success' || f.status === 'error') && (
                                                             <>
@@ -810,10 +693,6 @@ const App = () => {
                                                     </div>
                                                 </div>
                                             )}
-
-                                            {/* 2. MODALITÀ MODIFICA (Con Anteprima Laterale) */}
-                                            {/* 2. MODALITÀ MODIFICA (FULL SCREEN) */}
-                                            {/* 2. MODALITÀ MODIFICA (SPOSTATA FUORI DAL LOOP) */}
                                         </div>
                                     ))}
                                 </div>
@@ -823,14 +702,12 @@ const App = () => {
                 }
             </main >
 
-            {/* MODALE SETTINGS (Vault) */}
             {
                 showConfig && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
                         <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200">
                             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Icon name="Settings" className="w-5 h-5 text-slate-500" /> Configurazione</h2>
                             <p className="text-sm text-slate-500 mb-6">I dati vengono salvati localmente nel browser.</p>
-
                             <div className="space-y-4">
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Google Gemini API Key</label>
@@ -847,7 +724,6 @@ const App = () => {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="mt-8 flex justify-end gap-3">
                                 {config.apiKey && <button onClick={() => setShowConfig(false)} className="text-slate-500 hover:text-slate-700 text-sm px-3 font-medium transition-colors">Annulla</button>}
                                 <button onClick={() => saveConfig(config)} className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/10 transition-all transform hover:-translate-y-0.5">Salva Configurazione</button>
@@ -857,14 +733,12 @@ const App = () => {
                 )
             }
 
-            {/* MODALE MODIFICA (LIVELLO ROOT) */}
             {editingFileId && (() => {
                 const f = files.find(x => x.id === editingFileId);
                 if (!f) return null;
                 return (
                     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
                         <div className="bg-white rounded-2xl shadow-2xl w-[98vw] h-[95vh] flex flex-col overflow-hidden border border-slate-700">
-                            {/* HEADER */}
                             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
                                 <div className="flex items-center gap-6">
                                     <div className="flex items-center gap-2">
@@ -887,11 +761,8 @@ const App = () => {
                                     <Icon name="X" className="w-8 h-8" />
                                 </button>
                             </div>
-
-                            {/* CORPO */}
                             <div className="flex-1 overflow-hidden">
                                 <div className="h-full grid grid-cols-1 lg:grid-cols-12 divide-x divide-slate-200">
-                                    {/* COLONNA SINISTRA: Form */}
                                     <div className="lg:col-span-4 p-8 overflow-y-auto bg-white flex flex-col h-full">
                                         <div className="space-y-6 flex-1">
                                             <div>
@@ -928,8 +799,6 @@ const App = () => {
                                             <button onClick={() => saveEdit(f)} className="flex-[2] px-6 py-3 text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"><Icon name="Check" className="w-5 h-5" /> Salva Modifiche</button>
                                         </div>
                                     </div>
-
-                                    {/* COLONNA DESTRA: Anteprima */}
                                     <div className="lg:col-span-8 bg-slate-800 h-full flex flex-col relative">
                                         <div className="bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700 flex justify-between shrink-0">
                                             <span>Anteprima File</span>
@@ -975,7 +844,6 @@ const App = () => {
                 );
             })()}
 
-            {/* MODALE DOCUWARE/TOMMASO */}
             {
                 dwModalOpen && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
@@ -1014,11 +882,18 @@ const App = () => {
                                 )}
                                 {(dwStatus === 'logging_in' || dwStatus === 'uploading') && (
                                     <div>
-                                        <div className="flex flex-col items-center justify-center gap-4 mb-6">
-                                            <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center"><Icon name="Loader2" className="w-8 h-8 text-orange-500 animate-spin" /></div>
-                                            <span className="font-bold text-lg text-slate-700">
-                                                {dwStatus === 'logging_in' ? 'Login in corso...' : 'Caricamento documenti...'}
-                                            </span>
+                                        <div className="mb-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                {dwStatus === 'logging_in' && <Icon name="Loader2" className="w-5 h-5 animate-spin text-blue-600" />}
+                                                <span className="font-bold text-slate-700">
+                                                    {dwStatus === 'logging_in' ? 'Connessione in corso...' :
+                                                        dwStatus === 'uploading' ? 'Caricamento documenti...' :
+                                                            dwStatus === 'success' ? 'Operazione Completata' : 'Errore'}
+                                                </span>
+                                            </div>
+                                            {dwStatus === 'uploading' && (
+                                                <ProgressBar progress={dwProgress.current} total={dwProgress.total} label={`Avanzamento Upload: ${dwProgress.current} di ${dwProgress.total}`} color="bg-orange-500" />
+                                            )}
                                         </div>
                                         <div className="bg-slate-900 text-slate-300 p-4 rounded-xl text-xs font-mono h-48 overflow-y-auto border border-slate-700 shadow-inner">
                                             {dwLog.map((l, i) => <div key={i} className="border-b border-slate-800/50 pb-1.5 mb-1.5 last:border-0 last:pb-0 last:mb-0">{l}</div>)}
@@ -1053,7 +928,6 @@ const App = () => {
                 )
             }
 
-            {/* MODALE AI */}
             {
                 activeAnalysisFile && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm fade-in">
@@ -1101,7 +975,7 @@ const App = () => {
                                         ) : (
                                             <>
                                                 <h4 className="text-lg font-bold text-slate-700 mb-2">Pronto a generare</h4>
-                                                <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerà il contenuto del documento<br />per creare il testo richiesto.</p>
+                                                <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerÃ  il contenuto del documento<br />per creare il testo richiesto.</p>
                                             </>
                                         )}
 
@@ -1125,15 +999,12 @@ const App = () => {
                                         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm font-mono text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner flex-1 overflow-y-auto">{analysisResult}</div>
                                         <div className="mt-6 flex justify-between items-center gap-3">
                                             <span className="text-xs text-slate-400 mr-auto">Generato da Gemini AI</span>
-
-                                            {/* PULSANTE OUTLOOK */}
                                             <button
                                                 onClick={() => window.location.href = `mailto:?body=${encodeURIComponent(analysisResult)}`}
                                                 className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
                                             >
                                                 <Icon name="Mail" className="w-4 h-4" /> Invia con Outlook
                                             </button>
-
                                             <button onClick={() => navigator.clipboard.writeText(analysisResult)} className="bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 text-slate-600 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
                                                 <Icon name="Copy" className="w-4 h-4" /> Copia testo
                                             </button>
@@ -1147,7 +1018,7 @@ const App = () => {
             }
 
             <footer className="mt-20 py-8 text-center border-t border-slate-200 bg-white">
-                <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">© 2025 Ing. Luca Cayetano • Comune di Monteceneri</p>
+                <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">Â© 2025 Ing. Luca Cayetano â€¢ Comune di Monteceneri</p>
             </footer>
         </div >
     );
