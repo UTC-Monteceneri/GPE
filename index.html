@@ -16,7 +16,7 @@
     <!-- 3. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <script src="prompts.js"></script>
+    <script src="js/config.js"></script>
 
     <style>
         /* Font personalizzato simile a Century Gothic */
@@ -220,11 +220,11 @@
             const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
             const [dragActive, setDragActive] = useState(false);
             const [loadingFiles, setLoadingFiles] = useState(false);
-            const [libsLoaded, setLibsLoaded] = useState({ zip: false, mammoth: false, xlsx: false });
+            const [libsLoaded, setLibsLoaded] = useState({ zip: false, mammoth: false, xlsx: false, msgreader: false });
 
             // --- STATI MODIFICA E ANTEPRIMA ---
             const [editingFileId, setEditingFileId] = useState(null);
-            const [editForm, setEditForm] = useState({ filename: '', caseNumber: '', docType: '', projectPhase: '' });
+            const [editForm, setEditForm] = useState({ filename: '', caseNumber: '', docType: '', projectPhase: '', date: '' });
             const [previewUrl, setPreviewUrl] = useState(null);
 
             const [activeAnalysisFile, setActiveAnalysisFile] = useState(null);
@@ -238,11 +238,15 @@
 
             // --- FUNZIONI HELPER MODIFICA ---
             const startEditing = (file) => {
+                // Converte dateObject in formato YYYY-MM-DD per input type="date"
+                const dateObj = file.dateObject || new Date(file.file.lastModified);
+                const dateString = dateObj.toISOString().split('T')[0];
                 setEditForm({
                     filename: file.manualOverride || formFinalFilename(file.data),
                     caseNumber: file.data?.case_number || '',
                     docType: file.data?.doc_type || '',
-                    projectPhase: file.data?.project_phase || ''
+                    projectPhase: file.data?.project_phase || '',
+                    date: dateString
                 });
                 // Crea URL temporaneo per anteprima
                 if (file.file) setPreviewUrl(URL.createObjectURL(file.file));
@@ -257,11 +261,11 @@
 
             const saveEdit = (originalFile) => {
                 // 1. Determina la data corretta: usa quella esistente, oppure la data del file, oppure oggi.
-                const validDate = originalFile.dateObject || new Date(originalFile.file.lastModified) || new Date();
-                
+                const validDate = editForm.date ? new Date(editForm.date + 'T12:00:00') : (originalFile.dateObject || new Date(originalFile.file.lastModified) || new Date());
+
                 // 2. Gestione Incarto: Tommaso vuole un Intero. Se l'utente scrive testo, proviamo a convertirlo.
                 // Se è vuoto, rimane stringa vuota.
-                let safeCaseNumber = editForm.caseNumber; 
+                let safeCaseNumber = editForm.caseNumber;
                 if (safeCaseNumber && !isNaN(parseInt(safeCaseNumber))) {
                     // Se è un numero (es. "726"), assicuriamoci che sia trattato come tale
                     safeCaseNumber = parseInt(safeCaseNumber);
@@ -274,12 +278,12 @@
                     data: {
                         ...x.data,
                         // FIX: Mappa il nome file modificato sul campo 'subject' (Nome Documento) per Tommaso
-                        subject: editForm.filename, 
+                        subject: editForm.filename,
                         case_number: safeCaseNumber,
                         doc_type: editForm.docType,
                         project_phase: editForm.projectPhase,
                         // Mantieni l'Ente se c'era (dall'AI), altrimenti stringa vuota
-                        entity: (x.data && x.data.entity) ? x.data.entity : "" 
+                        entity: (x.data && x.data.entity) ? x.data.entity : ""
                     }
                 } : x));
                 stopEditing();
@@ -343,6 +347,18 @@
                     const mammothOk = await loadScriptWithFallback("mammoth-script", ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js", "https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"]);
                     setLibsLoaded(prev => ({ ...prev, mammoth: mammothOk }));
                     if (!mammothOk) setLibErrors(prev => [...prev, "Word"]);
+
+                    // Carica DataStream prima (dipendenza)
+                    const datastreamOk = await loadScriptWithFallback("datastream-script", [
+                        "https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/DataStream.js"
+                    ]);
+
+                    // Poi carica MSGReader
+                    const msgreaderOk = await loadScriptWithFallback("msgreader-script", [
+                        "https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/msg.reader.js"
+                    ]);
+                    setLibsLoaded(prev => ({ ...prev, msgreader: (datastreamOk && msgreaderOk) }));
+                    if (!msgreaderOk || !datastreamOk) setLibErrors(prev => [...prev, "MSG"]);
 
                     const xlsxOk = await loadScriptWithFallback("xlsx-script", ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"]);
                     setLibsLoaded(prev => ({ ...prev, xlsx: xlsxOk }));
@@ -421,6 +437,22 @@
                     const csvText = window.XLSX.utils.sheet_to_csv(worksheet);
                     return { type: 'text', content: csvText };
                 }
+                // Gestione MSG (email Outlook)
+                if (['msg'].includes(ext)) {
+                    if (!libsLoaded.msgreader || !window.MSGReader) return { type: 'error', content: '' };
+                    const arrayBuffer = await readFileSafe(file, 'arrayBuffer');
+                    const msgReader = new window.MSGReader(arrayBuffer);
+                    const fileData = msgReader.getFileData();
+
+                    // Estrai solo contenuto email (NO allegati)
+                    let emailContent = '';
+                    if (fileData.subject) emailContent += `Oggetto: ${fileData.subject}\n\n`;
+                    if (fileData.senderName) emailContent += `Da: ${fileData.senderName}\n`;
+                    if (fileData.body) emailContent += `\n${fileData.body}`;
+
+                    return { type: 'text', content: emailContent };
+                }
+
                 return { type: 'error', content: '' };
             };
 
@@ -897,12 +929,12 @@
                                                 )}
 
                                                 {/* 2. MODALITÀ MODIFICA (Con Anteprima Laterale) */}
-{/* 2. MODALITÀ MODIFICA (FULL SCREEN) */}
+                                                {/* 2. MODALITÀ MODIFICA (FULL SCREEN) */}
                                                 {editingFileId === f.id && (
                                                     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
                                                         {/* CONTENITORE PRINCIPALE: Occupa quasi tutto lo schermo (98% larghezza, 95% altezza) */}
                                                         <div className="bg-white rounded-2xl shadow-2xl w-[98vw] h-[95vh] flex flex-col overflow-hidden border border-slate-700">
-                                                            
+
                                                             {/* HEADER: Titolo e Tasto Chiudi */}
                                                             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
                                                                 <div className="flex flex-col">
@@ -925,31 +957,31 @@
                                                                         <div className="space-y-6 flex-1">
                                                                             <div>
                                                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Nome Documento (Oggetto)</label>
-                                                                                <textarea 
-                                                                                    autoFocus 
+                                                                                <textarea
+                                                                                    autoFocus
                                                                                     rows="3"
-                                                                                    value={editForm.filename} 
-                                                                                    onChange={e => setEditForm({ ...editForm, filename: e.target.value })} 
-                                                                                    className="w-full border border-slate-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-800 shadow-sm resize-none" 
+                                                                                    value={editForm.filename}
+                                                                                    onChange={e => setEditForm({ ...editForm, filename: e.target.value })}
+                                                                                    className="w-full border border-slate-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-800 shadow-sm resize-none"
                                                                                 />
                                                                             </div>
 
                                                                             <div className="grid grid-cols-2 gap-4">
                                                                                 <div>
                                                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">N. Incarto</label>
-                                                                                    <input 
-                                                                                        type="text" 
-                                                                                        value={editForm.caseNumber} 
-                                                                                        onChange={e => setEditForm({ ...editForm, caseNumber: e.target.value })} 
-                                                                                        className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-purple-50/50 text-purple-900 font-bold" 
-                                                                                        placeholder="Es. 726" 
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={editForm.caseNumber}
+                                                                                        onChange={e => setEditForm({ ...editForm, caseNumber: e.target.value })}
+                                                                                        className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-purple-50/50 text-purple-900 font-bold"
+                                                                                        placeholder="Es. 726"
                                                                                     />
                                                                                 </div>
                                                                                 <div>
                                                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Tipo Documento</label>
-                                                                                    <select 
-                                                                                        value={editForm.docType} 
-                                                                                        onChange={e => setEditForm({ ...editForm, docType: e.target.value })} 
+                                                                                    <select
+                                                                                        value={editForm.docType}
+                                                                                        onChange={e => setEditForm({ ...editForm, docType: e.target.value })}
                                                                                         className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 outline-none bg-orange-50/30 text-slate-700"
                                                                                     >
                                                                                         <option value="">-- Seleziona --</option>
@@ -960,14 +992,23 @@
 
                                                                             <div>
                                                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Fase Progetto</label>
-                                                                                <select 
-                                                                                    value={editForm.projectPhase} 
-                                                                                    onChange={e => setEditForm({ ...editForm, projectPhase: e.target.value })} 
+                                                                                <select
+                                                                                    value={editForm.projectPhase}
+                                                                                    onChange={e => setEditForm({ ...editForm, projectPhase: e.target.value })}
                                                                                     className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30 text-slate-700"
                                                                                 >
                                                                                     <option value="">-- Seleziona --</option>
                                                                                     {PROJECT_PHASES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                                                                 </select>
+                                                                            </div>
+                                                                            <div>
+                                                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Data Documento</label>
+                                                                                <input
+                                                                                    type="date"
+                                                                                    value={editForm.date}
+                                                                                    onChange={e => setEditForm({ ...editForm, date: e.target.value })}
+                                                                                    className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-green-50/30 text-slate-700 font-medium"
+                                                                                />
                                                                             </div>
                                                                         </div>
 
@@ -990,10 +1031,10 @@
                                                                         </div>
                                                                         <div className="flex-1 w-full h-full bg-slate-200 overflow-hidden relative">
                                                                             {previewUrl ? (
-                                                                                <iframe 
-                                                                                    src={previewUrl} 
-                                                                                    className="w-full h-full object-contain block" 
-                                                                                    title="Anteprima" 
+                                                                                <iframe
+                                                                                    src={previewUrl}
+                                                                                    className="w-full h-full object-contain block"
+                                                                                    title="Anteprima"
                                                                                 />
                                                                             ) : (
                                                                                 <div className="flex items-center justify-center h-full text-slate-400 gap-3">
@@ -1206,4 +1247,3 @@
 </body>
 
 </html>
-
