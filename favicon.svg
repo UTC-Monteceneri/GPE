@@ -1,0 +1,18 @@
+<svg viewBox="0 0 100 115" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <clipPath id="shieldMask">
+            <path d="M0,0 H100 V65 C100,95 50,115 50,115 C50,115 0,95 0,65 V0 Z" />
+        </clipPath>
+    </defs>
+    <g clipPath="url(#shieldMask)">
+        <rect x="0" y="0" width="50" height="120" fill="#1e3a8a" />
+        <rect x="50" y="0" width="50" height="120" fill="#d97706" />
+        <path d="M0,80 L50,45 V120 H0 Z" fill="#d97706" />
+        <path d="M100,80 L50,45 V120 H100 Z" fill="#1e3a8a" />
+        <circle cx="50" cy="45" r="14" fill="#b91c1c" />
+        <rect x="44" y="62" width="12" height="6" fill="#b91c1c" />
+        <rect x="44" y="72" width="12" height="6" fill="#b91c1c" />
+        <rect x="44" y="82" width="12" height="6" fill="#b91c1c" />
+        <rect x="44" y="92" width="12" height="6" fill="#b91c1c" />
+    </g>
+</svg>
