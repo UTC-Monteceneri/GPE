@@ -882,7 +882,7 @@
                                                                     {f.manualOverride || formFinalFilename(f.data) || "---"} <Icon name="Edit2" className="inline w-3 h-3 ml-2 text-slate-300" />
                                                                 </div>
                                                                 <div className="flex flex-wrap gap-2">
-                                                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200"><Icon name="Calendar" className="w-3 h-3 mr-1.5 text-slate-400" />{f.dateObject ? f.dateObject.toLocaleDateString('it-CH') : 'No Data'}</span>
+                                                                    <span onClick={() => startEditing(f)} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-slate-300 transition-all"><Icon name="Calendar" className="w-3 h-3 mr-1.5 text-slate-400" />{f.dateObject ? f.dateObject.toLocaleDateString('it-CH') : 'No Data'}</span>
 
                                                                     {/* Badge Incarto */}
                                                                     <span onClick={() => startEditing(f)} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border cursor-pointer transition-all hover:ring-2 hover:ring-offset-1 ${f.data?.case_number ? 'bg-purple-50 text-purple-700 border-purple-100 hover:ring-purple-200' : 'bg-slate-50 text-slate-400 border-dashed border-slate-300 hover:ring-slate-200'}`}>
@@ -1017,16 +1017,32 @@
                                                                             </div>
                                                                             <div className="flex-1 w-full h-full bg-slate-200 overflow-hidden relative">
                                                                                 {previewUrl ? (
-                                                                                    <iframe
-                                                                                        src={previewUrl}
-                                                                                        className="w-full h-full object-contain block"
-                                                                                        title="Anteprima"
-                                                                                    />
+                                                                                    f.file.type.startsWith('image/') ? (
+                                                                                        <img src={previewUrl} className="w-full h-full object-contain block" alt="Anteprima" />
+                                                                                    ) : f.file.type === 'application/pdf' ? (
+                                                                                        <iframe
+                                                                                            src={previewUrl}
+                                                                                            className="w-full h-full object-contain block"
+                                                                                            title="Anteprima"
+                                                                                        />
+                                                                                    ) : (
+                                                                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center">
+                                                                                            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
+                                                                                                <Icon name="FileText" className="w-10 h-10 text-slate-300" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h4 className="font-bold text-slate-600 mb-1">Anteprima non disponibile</h4>
+                                                                                                <p className="text-sm">Il formato <strong>{f.file.name.split('.').pop().toUpperCase()}</strong> non supporta l'anteprima rapida.</p>
+                                                                                                <p className="text-xs mt-2 text-slate-400">Apri il file originale per visualizzarlo.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    )
                                                                                 ) : (
                                                                                     <div className="flex items-center justify-center h-full text-slate-400 gap-3">
                                                                                         <Icon name="Loader2" className="w-8 h-8 animate-spin" />
                                                                                     </div>
-                                                                                )}
+                                                                                )
+                                                                                }
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -1233,4 +1249,3 @@
     </body>
 
 </html>
-
