@@ -179,29 +179,36 @@ const App = () => {
         };
 
         const loadAll = async () => {
-            const zipOk = await loadScriptWithFallback("jszip-script", ["https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"]);
-            setLibsLoaded(prev => ({ ...prev, zip: zipOk }));
-            if (!zipOk) setLibErrors(prev => [...prev, "ZIP"]);
+            await Promise.all([
+                // ZIP
+                (async () => {
+                    const zipOk = await loadScriptWithFallback("jszip-script", ["https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"]);
+                    setLibsLoaded(prev => ({ ...prev, zip: zipOk }));
+                    if (!zipOk) setLibErrors(prev => [...prev, "ZIP"]);
+                })(),
 
-            const mammothOk = await loadScriptWithFallback("mammoth-script", ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js", "https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"]);
-            setLibsLoaded(prev => ({ ...prev, mammoth: mammothOk }));
-            if (!mammothOk) setLibErrors(prev => [...prev, "Word"]);
+                // Mammoth (Word)
+                (async () => {
+                    const mammothOk = await loadScriptWithFallback("mammoth-script", ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js", "https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"]);
+                    setLibsLoaded(prev => ({ ...prev, mammoth: mammothOk }));
+                    if (!mammothOk) setLibErrors(prev => [...prev, "Word"]);
+                })(),
 
-            // Carica DataStream prima (dipendenza)
-            const datastreamOk = await loadScriptWithFallback("datastream-script", [
-                "https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/DataStream.js"
+                // XLSX (Excel)
+                (async () => {
+                    const xlsxOk = await loadScriptWithFallback("xlsx-script", ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"]);
+                    setLibsLoaded(prev => ({ ...prev, xlsx: xlsxOk }));
+                    if (!xlsxOk) setLibErrors(prev => [...prev, "Excel"]);
+                })(),
+
+                // MSG Reader (Dipendente da DataStream)
+                (async () => {
+                    const datastreamOk = await loadScriptWithFallback("datastream-script", ["https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/DataStream.js"]);
+                    const msgreaderOk = await loadScriptWithFallback("msgreader-script", ["https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/msg.reader.js"]);
+                    setLibsLoaded(prev => ({ ...prev, msgreader: (datastreamOk && msgreaderOk) }));
+                    if (!msgreaderOk || !datastreamOk) setLibErrors(prev => [...prev, "MSG"]);
+                })()
             ]);
-
-            // Poi carica MSGReader
-            const msgreaderOk = await loadScriptWithFallback("msgreader-script", [
-                "https://cdn.jsdelivr.net/npm/wl-msg-reader@0.2.1/lib/msg.reader.js"
-            ]);
-            setLibsLoaded(prev => ({ ...prev, msgreader: (datastreamOk && msgreaderOk) }));
-            if (!msgreaderOk || !datastreamOk) setLibErrors(prev => [...prev, "MSG"]);
-
-            const xlsxOk = await loadScriptWithFallback("xlsx-script", ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"]);
-            setLibsLoaded(prev => ({ ...prev, xlsx: xlsxOk }));
-            if (!xlsxOk) setLibErrors(prev => [...prev, "Excel"]);
         };
 
         loadAll();
@@ -565,22 +572,24 @@ const App = () => {
         setSortConfig({ key, direction });
     };
 
-    useEffect(() => {
-        if (sortConfig.key !== null) {
-            const sortedFiles = [...files].sort((a, b) => {
-                let aVal = sortConfig.key === 'docDate' ? (a.dateObject ? a.dateObject.getTime() : 0) : a[sortConfig.key];
-                let bVal = sortConfig.key === 'docDate' ? (b.dateObject ? b.dateObject.getTime() : 0) : b[sortConfig.key];
-                if (sortConfig.key === 'generatedName') {
-                    aVal = a.processed ? formFinalFilename(a.data) : 'zzz';
-                    bVal = b.processed ? formFinalFilename(b.data) : 'zzz';
-                }
-                if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
-                if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
-                return 0;
-            });
-            setFiles(sortedFiles);
-        }
-    }, [sortConfig]);
+    // OTTIMIZZAZIONE: useMemo per ordinamento istantaneo senza re-render doppi
+    const sortedFiles = React.useMemo(() => {
+        if (!sortConfig.key) return files;
+
+        return [...files].sort((a, b) => {
+            let aVal = sortConfig.key === 'docDate' ? (a.dateObject ? a.dateObject.getTime() : 0) : a[sortConfig.key];
+            let bVal = sortConfig.key === 'docDate' ? (b.dateObject ? b.dateObject.getTime() : 0) : b[sortConfig.key];
+
+            if (sortConfig.key === 'generatedName') {
+                aVal = a.processed ? formFinalFilename(a.data) : 'zzz';
+                bVal = b.processed ? formFinalFilename(b.data) : 'zzz';
+            }
+
+            if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }, [files, sortConfig]);
 
     // --- UI COMPONENTS ---
     if (!componentsReady) return <div className="flex items-center justify-center min-h-screen text-slate-500">Caricamento moduli...</div>;
@@ -704,7 +713,7 @@ const App = () => {
                                 </div>
 
                                 <div className="divide-y divide-slate-100">
-                                    {files.map(f => (
+                                    {sortedFiles.map(f => (
                                         <div key={f.id} className={`p-4 transition-colors ${editingFileId === f.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
 
                                             {/* 1. VISTA NORMALE (Click-to-Edit Attivo) */}
