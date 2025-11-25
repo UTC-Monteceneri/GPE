@@ -56,6 +56,7 @@ const App = () => {
 
     const [activeAnalysisFile, setActiveAnalysisFile] = useState(null);
     const [analysisType, setAnalysisType] = useState('internal_summary');
+    const [customPromptText, setCustomPromptText] = useState(""); // NUOVO STATO
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [dwModalOpen, setDwModalOpen] = useState(false);
@@ -98,7 +99,7 @@ const App = () => {
         setPreviewUrl(null);
     };
 
-    const saveEdit = (originalFile) => {
+    const saveEdit = (originalFile, shouldClose = true) => {
         // 1. Determina la data corretta: usa quella esistente, oppure la data del file, oppure oggi.
         const validDate = editForm.date ? new Date(editForm.date + 'T12:00:00') : (originalFile.dateObject || new Date(originalFile.file.lastModified) || new Date());
 
@@ -125,7 +126,31 @@ const App = () => {
                 entity: (x.data && x.data.entity) ? x.data.entity : ""
             }
         } : x));
-        stopEditing();
+
+        if (shouldClose) {
+            stopEditing();
+        }
+    };
+
+    // NUOVA FUNZIONE: Navigazione tra file (salva e passa al prossimo)
+    const navigateFile = (direction) => {
+        // 1. Salva modifiche correnti senza chiudere
+        const currentFile = files.find(f => f.id === editingFileId);
+        if (currentFile) saveEdit(currentFile, false);
+
+        // 2. Trova indice in sortedFiles (così segue l'ordine visivo)
+        const currentIndex = sortedFiles.findIndex(f => f.id === editingFileId);
+        if (currentIndex === -1) return;
+
+        // 3. Calcola nuovo indice
+        let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+        // Gestione limiti (Loop)
+        if (newIndex < 0) newIndex = sortedFiles.length - 1;
+        if (newIndex >= sortedFiles.length) newIndex = 0;
+
+        // 4. Passa al nuovo file
+        startEditing(sortedFiles[newIndex]);
     };
 
     useEffect(() => {
@@ -368,14 +393,21 @@ const App = () => {
                         docDate = new Date(parseInt(json.date_year), parseInt(json.date_month) - 1, parseInt(json.date_day), 12);
                     } else { docDate = new Date(f.file.lastModified); }
 
-                    setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'success', data: json, processed: true, dateObject: docDate } : x));
+                    setFiles(p => p.map(x => x.id === f.id ? {
+                        ...x,
+                        status: 'success',
+                        data: json,
+                        processed: true,
+                        dateObject: docDate,
+                        extractedText: prep.type === 'text' ? prep.content : null
+                    } : x));
                 } catch (e) {
                     setFiles(p => p.map(x => x.id === f.id ? { ...x, status: 'error', errorMessage: e.message } : x));
+                } finally {
+                    count++;
+                    setProgress({ current: count, total: todo.length });
                 }
             }));
-            // Aggiorniamo il progresso per l'intero batch
-            count += batch.length;
-            setProgress({ current: count, total: todo.length });
         }
         setIsProcessing(false);
     };
@@ -390,7 +422,13 @@ const App = () => {
         setAnalysisResult(null);
 
         // Seleziona il prompt corretto in base al tasto premuto
-        let promptSystem = type === 'diplomatic_response' ? PROMPTS.DIPLOMATIC : PROMPTS.SUMMARY;
+        let promptSystem;
+        if (type === 'diplomatic_response') promptSystem = PROMPTS.DIPLOMATIC;
+        else if (type === 'custom') {
+            if (!customPromptText.trim()) { alert("Inserisci un prompt personalizzato!"); setIsAnalyzing(false); return; }
+            promptSystem = customPromptText;
+        }
+        else promptSystem = PROMPTS.SUMMARY;
 
         try {
             let preparedData;
@@ -592,7 +630,12 @@ const App = () => {
     }, [files, sortConfig]);
 
     // --- UI COMPONENTS ---
-    if (!componentsReady) return <div className="flex items-center justify-center min-h-screen text-slate-500">Caricamento moduli...</div>;
+    if (!componentsReady) return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 font-sans">
+            <div className="w-12 h-12 border-4 border-slate-200 border-b-blue-900 rounded-full animate-spin mb-5"></div>
+            <div className="text-lg font-semibold text-slate-600 animate-pulse">Caricamento moduli...</div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 relative">
@@ -770,140 +813,7 @@ const App = () => {
 
                                             {/* 2. MODALITÀ MODIFICA (Con Anteprima Laterale) */}
                                             {/* 2. MODALITÀ MODIFICA (FULL SCREEN) */}
-                                            {editingFileId === f.id && (
-                                                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
-                                                    {/* CONTENITORE PRINCIPALE: Occupa quasi tutto lo schermo (98% larghezza, 95% altezza) */}
-                                                    <div className="bg-white rounded-2xl shadow-2xl w-[98vw] h-[95vh] flex flex-col overflow-hidden border border-slate-700">
-
-                                                        {/* HEADER: Titolo e Tasto Chiudi */}
-                                                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
-                                                            <div className="flex flex-col">
-                                                                <h4 className="text-xl font-bold text-blue-900 flex items-center gap-2">
-                                                                    <Icon name="Edit2" className="w-5 h-5" /> Modifica e Verifica
-                                                                </h4>
-                                                                <p className="text-sm text-slate-500 font-mono mt-1">{f.originalName}</p>
-                                                            </div>
-                                                            <button onClick={stopEditing} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-full transition-colors" title="Chiudi senza salvare">
-                                                                <Icon name="X" className="w-8 h-8" />
-                                                            </button>
-                                                        </div>
-
-                                                        {/* CORPO: Griglia divisa in due colonne che occupa tutta l'altezza rimanente */}
-                                                        <div className="flex-1 overflow-hidden">
-                                                            <div className="h-full grid grid-cols-1 lg:grid-cols-12 divide-x divide-slate-200">
-
-                                                                {/* COLONNA SINISTRA: Form Dati (30% larghezza su schermi grandi) */}
-                                                                <div className="lg:col-span-4 p-8 overflow-y-auto bg-white flex flex-col h-full">
-                                                                    <div className="space-y-6 flex-1">
-                                                                        <div>
-                                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Nome Documento (Oggetto)</label>
-                                                                            <textarea
-                                                                                autoFocus
-                                                                                rows="3"
-                                                                                value={editForm.filename}
-                                                                                onChange={e => setEditForm({ ...editForm, filename: e.target.value })}
-                                                                                className="w-full border border-slate-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-800 shadow-sm resize-none"
-                                                                            />
-                                                                        </div>
-
-                                                                        <div className="grid grid-cols-2 gap-4">
-                                                                            <div>
-                                                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">N. Incarto</label>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={editForm.caseNumber}
-                                                                                    onChange={e => setEditForm({ ...editForm, caseNumber: e.target.value })}
-                                                                                    className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-purple-50/50 text-purple-900 font-bold"
-                                                                                    placeholder="Es. 726"
-                                                                                />
-                                                                            </div>
-                                                                            <div>
-                                                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Tipo Documento</label>
-                                                                                <select
-                                                                                    value={editForm.docType}
-                                                                                    onChange={e => setEditForm({ ...editForm, docType: e.target.value })}
-                                                                                    className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 outline-none bg-orange-50/30 text-slate-700"
-                                                                                >
-                                                                                    <option value="">-- Seleziona --</option>
-                                                                                    {DOC_TYPES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                                                </select>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div>
-                                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Fase Progetto</label>
-                                                                            <select
-                                                                                value={editForm.projectPhase}
-                                                                                onChange={e => setEditForm({ ...editForm, projectPhase: e.target.value })}
-                                                                                className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30 text-slate-700"
-                                                                            >
-                                                                                <option value="">-- Seleziona --</option>
-                                                                                {PROJECT_PHASES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                                            </select>
-                                                                        </div>
-                                                                        <div>
-                                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Data Documento</label>
-                                                                            <input
-                                                                                type="date"
-                                                                                value={editForm.date}
-                                                                                onChange={e => setEditForm({ ...editForm, date: e.target.value })}
-                                                                                className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-green-50/30 text-slate-700 font-medium"
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Pulsanti Azione in fondo alla colonna form */}
-                                                                    <div className="pt-6 mt-6 border-t border-slate-100 flex gap-3 sticky bottom-0 bg-white">
-                                                                        <button onClick={stopEditing} className="flex-1 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors">
-                                                                            Annulla
-                                                                        </button>
-                                                                        <button onClick={() => saveEdit(f)} className="flex-[2] px-6 py-3 text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5">
-                                                                            <Icon name="Check" className="w-5 h-5" /> Salva Modifiche
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* COLONNA DESTRA: Anteprima Gigante (70% larghezza) */}
-                                                                <div className="lg:col-span-8 bg-slate-800 h-full flex flex-col relative">
-                                                                    <div className="bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700 flex justify-between shrink-0">
-                                                                        <span>Anteprima File</span>
-                                                                        <span>{previewUrl ? 'Visualizzazione Attiva' : 'Caricamento...'}</span>
-                                                                    </div>
-                                                                    <div className="flex-1 w-full h-full bg-slate-200 overflow-hidden relative">
-                                                                        {previewUrl ? (
-                                                                            f.file.type.startsWith('image/') ? (
-                                                                                <img src={previewUrl} className="w-full h-full object-contain block" alt="Anteprima" />
-                                                                            ) : f.file.type === 'application/pdf' ? (
-                                                                                <iframe
-                                                                                    src={previewUrl}
-                                                                                    className="w-full h-full object-contain block"
-                                                                                    title="Anteprima"
-                                                                                />
-                                                                            ) : (
-                                                                                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center">
-                                                                                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
-                                                                                        <Icon name="FileText" className="w-10 h-10 text-slate-300" />
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <h4 className="font-bold text-slate-600 mb-1">Anteprima non disponibile</h4>
-                                                                                        <p className="text-sm">Il formato <strong>{f.file.name.split('.').pop().toUpperCase()}</strong> non supporta l'anteprima rapida.</p>
-                                                                                        <p className="text-xs mt-2 text-slate-400">Apri il file originale per visualizzarlo.</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )
-                                                                        ) : (
-                                                                            <div className="flex items-center justify-center h-full text-slate-400 gap-3">
-                                                                                <Icon name="Loader2" className="w-8 h-8 animate-spin" />
-                                                                            </div>
-                                                                        )
-                                                                        }
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
+                                            {/* 2. MODALITÀ MODIFICA (SPOSTATA FUORI DAL LOOP) */}
                                         </div>
                                     ))}
                                 </div>
@@ -946,6 +856,124 @@ const App = () => {
                     </div>
                 )
             }
+
+            {/* MODALE MODIFICA (LIVELLO ROOT) */}
+            {editingFileId && (() => {
+                const f = files.find(x => x.id === editingFileId);
+                if (!f) return null;
+                return (
+                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+                        <div className="bg-white rounded-2xl shadow-2xl w-[98vw] h-[95vh] flex flex-col overflow-hidden border border-slate-700">
+                            {/* HEADER */}
+                            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => navigateFile('prev')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-700 hover:border-blue-300 transition-all shadow-sm" title="Salva e vai al precedente">
+                                            <Icon name="ChevronLeft" className="w-4 h-4" /> Precedente
+                                        </button>
+                                        <button onClick={() => navigateFile('next')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-700 hover:border-blue-300 transition-all shadow-sm" title="Salva e vai al successivo">
+                                            Successivo <Icon name="ChevronRight" className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="h-8 w-px bg-slate-300 mx-2"></div>
+                                    <div className="flex flex-col">
+                                        <h4 className="text-xl font-bold text-blue-900 flex items-center gap-2">
+                                            <Icon name="Edit2" className="w-5 h-5" /> Modifica e Verifica
+                                        </h4>
+                                        <p className="text-sm text-slate-500 font-mono mt-1 max-w-md truncate">{f.originalName}</p>
+                                    </div>
+                                </div>
+                                <button onClick={stopEditing} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-full transition-colors" title="Chiudi senza salvare">
+                                    <Icon name="X" className="w-8 h-8" />
+                                </button>
+                            </div>
+
+                            {/* CORPO */}
+                            <div className="flex-1 overflow-hidden">
+                                <div className="h-full grid grid-cols-1 lg:grid-cols-12 divide-x divide-slate-200">
+                                    {/* COLONNA SINISTRA: Form */}
+                                    <div className="lg:col-span-4 p-8 overflow-y-auto bg-white flex flex-col h-full">
+                                        <div className="space-y-6 flex-1">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Nome Documento (Oggetto)</label>
+                                                <textarea autoFocus rows="3" value={editForm.filename} onChange={e => setEditForm({ ...editForm, filename: e.target.value })} className="w-full border border-slate-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-800 shadow-sm resize-none" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">N. Incarto</label>
+                                                    <input type="text" value={editForm.caseNumber} onChange={e => setEditForm({ ...editForm, caseNumber: e.target.value })} className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-purple-50/50 text-purple-900 font-bold" placeholder="Es. 726" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Tipo Documento</label>
+                                                    <select value={editForm.docType} onChange={e => setEditForm({ ...editForm, docType: e.target.value })} className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 outline-none bg-orange-50/30 text-slate-700">
+                                                        <option value="">-- Seleziona --</option>
+                                                        {DOC_TYPES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Fase Progetto</label>
+                                                <select value={editForm.projectPhase} onChange={e => setEditForm({ ...editForm, projectPhase: e.target.value })} className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30 text-slate-700">
+                                                    <option value="">-- Seleziona --</option>
+                                                    {PROJECT_PHASES_LIST.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Data Documento</label>
+                                                <input type="date" value={editForm.date} onChange={e => setEditForm({ ...editForm, date: e.target.value })} className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-green-50/30 text-slate-700 font-medium" />
+                                            </div>
+                                        </div>
+                                        <div className="pt-6 mt-6 border-t border-slate-100 flex gap-3 sticky bottom-0 bg-white">
+                                            <button onClick={stopEditing} className="flex-1 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors">Annulla</button>
+                                            <button onClick={() => saveEdit(f)} className="flex-[2] px-6 py-3 text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"><Icon name="Check" className="w-5 h-5" /> Salva Modifiche</button>
+                                        </div>
+                                    </div>
+
+                                    {/* COLONNA DESTRA: Anteprima */}
+                                    <div className="lg:col-span-8 bg-slate-800 h-full flex flex-col relative">
+                                        <div className="bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700 flex justify-between shrink-0">
+                                            <span>Anteprima File</span>
+                                            <span>{previewUrl ? 'Visualizzazione Attiva' : 'Caricamento...'}</span>
+                                        </div>
+                                        <div className="flex-1 w-full h-full bg-slate-200 overflow-hidden relative">
+                                            {previewUrl ? (
+                                                f.file.type.startsWith('image/') ? (
+                                                    <img src={previewUrl} className="w-full h-full object-contain block" alt="Anteprima" />
+                                                ) : f.file.type === 'application/pdf' ? (
+                                                    <iframe src={previewUrl} className="w-full h-full object-contain block" title="Anteprima" />
+                                                ) : (
+                                                    f.extractedText ? (
+                                                        <div className="w-full h-full p-6 overflow-auto bg-white">
+                                                            <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2 sticky top-0 bg-white py-2 border-b border-slate-100">
+                                                                <Icon name="FileText" className="w-5 h-5 text-blue-600" />
+                                                                Contenuto Testuale Estratto
+                                                            </h4>
+                                                            <pre className="whitespace-pre-wrap font-mono text-sm text-slate-600 leading-relaxed">
+                                                                {f.extractedText}
+                                                            </pre>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center">
+                                                            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center"><Icon name="FileText" className="w-10 h-10 text-slate-300" /></div>
+                                                            <div>
+                                                                <h4 className="font-bold text-slate-600 mb-1">Anteprima non disponibile</h4>
+                                                                <p className="text-sm">Il formato <strong>{f.file.name.split('.').pop().toUpperCase()}</strong> non supporta l'anteprima rapida.</p>
+                                                                <p className="text-xs mt-2 text-slate-400">Apri il file originale per visualizzarlo.</p>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                )
+                                            ) : (
+                                                <div className="flex items-center justify-center h-full text-slate-400 gap-3"><Icon name="Loader2" className="w-8 h-8 animate-spin" /></div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* MODALE DOCUWARE/TOMMASO */}
             {
@@ -1047,17 +1075,38 @@ const App = () => {
                                 <button onClick={() => { setAnalysisType('diplomatic_response'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'diplomatic_response' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
                                     <span className="flex items-center justify-center gap-2"><Icon name="MessageSquare" className="w-4 h-4" /> Risposta Diplomatica</span>
                                 </button>
+                                <button onClick={() => { setAnalysisType('custom'); setAnalysisResult(null); }} className={`flex-1 py-4 text-sm font-bold transition-all ${analysisType === 'custom' ? 'bg-white text-blue-700 border-b-2 border-blue-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                                    <span className="flex items-center justify-center gap-2"><Icon name="Terminal" className="w-4 h-4" /> Prompt Personalizzato</span>
+                                </button>
                             </div>
                             <div className="p-8 flex-1 overflow-y-auto min-h-[400px] bg-white">
                                 {!analysisResult && !isAnalyzing && (
-                                    <div className="text-center mt-16 animate-in fade-in">
+                                    <div className="text-center mt-8 animate-in fade-in">
                                         <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                            <Icon name="Sparkles" className="w-10 h-10 text-blue-300" />
+                                            <Icon name={analysisType === 'custom' ? "Terminal" : "Sparkles"} className="w-10 h-10 text-blue-300" />
                                         </div>
-                                        <h4 className="text-lg font-bold text-slate-700 mb-2">Pronto a generare</h4>
-                                        <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerà il contenuto del documento<br />per creare il testo richiesto.</p>
+
+                                        {analysisType === 'custom' ? (
+                                            <div className="max-w-lg mx-auto mb-8">
+                                                <h4 className="text-lg font-bold text-slate-700 mb-2">Chiedi all'AI</h4>
+                                                <p className="text-slate-400 text-sm mb-4">Scrivi una richiesta specifica per analizzare questo documento.</p>
+                                                <textarea
+                                                    value={customPromptText}
+                                                    onChange={(e) => setCustomPromptText(e.target.value)}
+                                                    placeholder="Es: Estrai tutte le date di scadenza... oppure Traduci in francese..."
+                                                    className="w-full border border-slate-300 rounded-xl p-4 text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm min-h-[120px]"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <h4 className="text-lg font-bold text-slate-700 mb-2">Pronto a generare</h4>
+                                                <p className="text-slate-400 text-sm mb-8">L'intelligenza artificiale analizzerà il contenuto del documento<br />per creare il testo richiesto.</p>
+                                            </>
+                                        )}
+
                                         <button onClick={() => handleToolAnalysis(analysisType)} className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl shadow-blue-900/20 transition-all transform hover:-translate-y-1 font-bold flex items-center gap-3 mx-auto text-base">
-                                            <Icon name="Sparkles" className="w-5 h-5" /> Genera {analysisType === 'internal_summary' ? 'Riassunto' : 'Bozza'}
+                                            <Icon name="Sparkles" className="w-5 h-5" /> Genera {analysisType === 'internal_summary' ? 'Riassunto' : (analysisType === 'diplomatic_response' ? 'Bozza' : 'Risposta')}
                                         </button>
                                     </div>
                                 )}
