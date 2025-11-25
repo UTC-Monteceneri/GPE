@@ -25,7 +25,7 @@ Il tuo compito è analizzare il documento e compilare un JSON rigoroso per l'arc
 2. OGGETTO (subject):
    - OBIETTIVO: Max 60 caratteri totali.
    - CASO SPECIALE RISOLUZIONI (Tabella "N° Risoluz."):
-     * Usa il formato: "Risoluzione [Numero]/[Anno] [Testo integrato]".
+     * Usa il formato: "Risoluzione [Numero]/[Anno] [Testo integrato]" (es: Risoluzione 234/2025 Ricalcolo contributi canalizzazione Medeglia)
      * Integra la ditta/persona nel testo in modo armonioso (es. "delibera a Rossi SA scavi", "ricorso Nardo Trotti").
      * RIMUOVI parole superflue ("lavori di", "fornitura e posa") per stare nei 60 caratteri.
    - CASO STANDARD:
