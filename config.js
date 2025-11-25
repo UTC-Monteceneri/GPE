@@ -3,7 +3,7 @@
 
 // === PROMPTS DI SISTEMA ===
 window.MONTECENERI_PROMPTS = {
-    RENAME: `
+   RENAME: `
 Sei un assistente amministrativo esperto per l'Ufficio Tecnico del Comune di Monteceneri.
 Il tuo compito è analizzare il documento e compilare un JSON rigoroso per l'archiviazione.
 
@@ -63,7 +63,7 @@ OUTPUT JSON OBBLIGATORIO (Nessun altro testo):
 }
             `,
 
-    SUMMARY: `
+   SUMMARY: `
 Sei un assistente amministrativo per il Comune di Monteceneri.
 Il tuo compito è leggere attentamente il documento ricevuto e creare un riassunto BREVE E PROFESSIONALE adatto all'uso INTERNO dell'Ufficio Tecnico.
 
@@ -83,7 +83,7 @@ ESEMPIO OUTPUT:
 Ora genera il riassunto per il documento ricevuto.
             `,
 
-    DIPLOMATIC: `
+   DIPLOMATIC: `
 Sei un assistente amministrativo per il Comune di Monteceneri.
 Il tuo compito è leggere il documento ricevuto (solitamente una lettera o richiesta di un cittadino) e generare una BOZZA DI RISPOSTA DIPLOMATICA E PROFESSIONALE.
 
@@ -117,30 +117,30 @@ Ora genera la bozza di risposta per il documento ricevuto.
 
 // === CONFIGURAZIONE DOCUWARE ===
 window.DOCUWARE_CONFIG = {
-    loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/",
-    baseUrl: "https://tommaso.tectel.ch/docuware/Platform",
-    basketId: "b_aaeb8717-6b54-421e-a15e-458e3f783357",
-    fields: {
-        date: "DATA_DOCUMENTO",
-        subject: "NOME_DOCUMENTO",
-        entity: "ENTE_MITTENTE",
-        docType: "TIPO_DOCUMENTO",
-        projectPhase: "FASE_DEL_PROGETTO",
-        caseNumber: "INCARTO"
-    }
+   loginUrl: "https://tommaso.tectel.ch/docuware/Platform/WebClient/",
+   baseUrl: "https://tommaso.tectel.ch/docuware/Platform",
+   basketId: "b_aaeb8717-6b54-421e-a15e-458e3f783357",
+   fields: {
+      date: "DATA_DOCUMENTO",
+      subject: "NOME_DOCUMENTO",
+      entity: "ENTE_MITTENTE",
+      docType: "TIPO_DOCUMENTO",
+      projectPhase: "FASE_DEL_PROGETTO",
+      caseNumber: "INCARTO"
+   }
 };
 
 // === LISTE DROPDOWN ===
 window.DOC_TYPES_LIST = [
-    "00 Apertura incarto", "01 Messaggi Municipali", "02 Risoluzioni Municipali", "03 Rapporti Ufficio tecnico comunale",
-    "04 Avvisi", "05 Autorizzazioni, licenze", "06 Accordi, convenzioni", "07 Gestione documenti incarto",
-    "10 Documentazione tecnica, elaborati grafici", "11 Documentazione fotografica", "12 Programma lavori",
-    "20 Corrispondenza", "21 Verbali", "30 Gestione contabile", "31 Offerte, preventivi", "32 Fatture",
-    "33 Delibere", "34 Documentazione appalto", "53 Liquidazione"
+   "00 Apertura incarto", "01 Messaggi Municipali", "02 Risoluzioni Municipali", "03 Rapporti Ufficio tecnico comunale",
+   "04 Avvisi", "05 Autorizzazioni, licenze", "06 Accordi, convenzioni", "07 Gestione documenti incarto",
+   "10 Documentazione tecnica, elaborati grafici", "11 Documentazione fotografica", "12 Programma lavori",
+   "20 Corrispondenza", "21 Verbali", "30 Gestione contabile", "31 Offerte, preventivi", "32 Fatture",
+   "33 Delibere", "34 Documentazione appalto", "53 Liquidazione"
 ];
 
 window.PROJECT_PHASES_LIST = [
-    "00 generale", "11 pianificazione strategica", "21 studio preliminare", "31 progetto di massima",
-    "32 progetto definitivo", "33 progetto di pubblicazione/domanda di costruzione", "41 appalto",
-    "51 progetto esecutivo", "52 Esecuzione", "53 Liquidazione", "60 gestione, esercizio"
+   "00 generale", "11 pianificazione strategica", "21 studio preliminare", "31 progetto di massima",
+   "32 progetto definitivo", "33 progetto di pubblicazione/domanda di costruzione", "41 appalto",
+   "51 progetto esecutivo", "52 Esecuzione", "53 Liquidazione", "60 gestione, esercizio"
 ];
